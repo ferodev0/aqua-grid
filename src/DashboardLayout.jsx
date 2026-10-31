@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import './index.css';
 import { useNetwork } from './context/NetworkContext';
 
@@ -142,7 +143,8 @@ export default function DashboardLayout() {
 
         {/* Navigasyon Linkleri */}
         <nav className="flex flex-col gap-2 px-3 flex-1 overflow-x-hidden">
-          <button
+          <NavLink
+            to="/"
             className={`flex items-center gap-4 text-left px-3 py-3 rounded-lg border transition-all whitespace-nowrap ${
               isSidebarOpen
                 ? 'bg-teal-50 text-teal-700 font-semibold border-teal-200'
@@ -161,9 +163,10 @@ export default function DashboardLayout() {
             <span className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
               Dashboard
             </span>
-          </button>
+          </NavLink>
 
-          <button
+          <NavLink
+            to="/map"
             className={`flex items-center gap-4 text-left px-3 py-3 rounded-lg border border-transparent transition-all whitespace-nowrap ${
               isSidebarOpen
                 ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
@@ -182,9 +185,10 @@ export default function DashboardLayout() {
             <span className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
               Network Map
             </span>
-          </button>
+          </NavLink>
 
-          <button
+          <NavLink
+            to="/sensors"
             className={`flex items-center gap-4 text-left px-3 py-3 rounded-lg border border-transparent transition-all whitespace-nowrap ${
               isSidebarOpen
                 ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
@@ -203,9 +207,10 @@ export default function DashboardLayout() {
             <span className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
               Sensors
             </span>
-          </button>
+          </NavLink>
 
-          <button
+          <NavLink
+            to="/impact"
             className={`flex items-center gap-4 text-left px-3 py-3 rounded-lg border border-transparent transition-all whitespace-nowrap ${
               isSidebarOpen
                 ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
@@ -224,7 +229,7 @@ export default function DashboardLayout() {
             <span className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
               Impact / About
             </span>
-          </button>
+          </NavLink>
         </nav>
       </aside>
 
