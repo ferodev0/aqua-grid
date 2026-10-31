@@ -279,20 +279,6 @@ export function NetworkMap() {
       }
     }
 
-    const sourceSensor = {
-      id: uuidv4(),
-      name: `Source Sensor ${sensors.length + 1}`,
-      channelSegmentId: newSegment.id,
-      location: { lat: channelPoints[0][0], lng: channelPoints[0][1], label: 'Channel source' },
-      status: 'normal',
-      current: {
-        flowRateLps: newSegment.flowRateLps,
-        waterLevelM: 1.0,
-        updatedAt: new Date().toISOString(),
-      },
-      baseline: { flowRateLps: newSegment.flowRateLps, waterLevelM: 1.0 },
-    };
-    addSensor(sourceSensor);
 
     const sourceSensor = {
       id: uuidv4(),
