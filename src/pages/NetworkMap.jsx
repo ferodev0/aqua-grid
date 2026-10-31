@@ -49,6 +49,30 @@ const DefaultIcon = new Icon({
   shadowSize: [41, 41],
 });
 
+// Component that uses Leaflet's native click event (more reliable than React onClick)
+function MapClickHandler({ onMapClick, mode }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+
+    const handler = (e) => {
+      // Only handle clicks when in draw or place mode
+      if (mode === 'draw' || mode === 'place') {
+        onMapClick(e.latlng);
+      }
+    };
+
+    map.on('click', handler);
+
+    return () => {
+      map.off('click', handler);
+    };
+  }, [map, mode, onMapClick]);
+
+  return null;
+}
+
 // Map interaction controller - disables dragging/zoom in draw/place mode
 function MapInteractionController({ mode }) {
   const map = useMap();
@@ -103,8 +127,9 @@ export function NetworkMap() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleMapClick = useCallback((e) => {
-    const { lat, lng } = e.latlng;
+  // Use Leaflet's native click event for reliable click detection
+  const handleMapClick = useCallback((latlng) => {
+    const { lat, lng } = latlng;
 
     if (mode === 'draw') {
       setChannelPoints(prev => [...prev, [lat, lng]]);
@@ -265,7 +290,7 @@ export function NetworkMap() {
                   ? 'bg-amber-600 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
-              title={mode === 'draw' ? 'Click to add points, then Complete' : 'Draw new channel (source = first point)'}
+              title={mode === 'draw' ? 'Click to add points, then Complete Channel' : 'Draw new channel (source = first point)'}
             >
               {mode === 'draw' ? '✏️ Drawing...' : '✏️ Draw Channel'}
             </button>
@@ -307,12 +332,14 @@ export function NetworkMap() {
             zoom={9}
             scrollWheelZoom={true}
             style={{ width: '100%', height: '100%', minHeight: '600px', borderRadius: '0.5rem' }}
-            onClick={handleMapClick}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+
+            {/* Map click handler - uses Leaflet native events */}
+            <MapClickHandler onMapClick={handleMapClick} mode={mode} />
 
             {/* Map interaction controller */}
             <MapInteractionController mode={mode} />
@@ -323,32 +350,32 @@ export function NetworkMap() {
                 key={segment.id}
                 positions={segment.path.map(p => [p.lat, p.lng])}
                 color={segment.isIllustrative ? '#94a3b8' : '#0d9488'}
-                weight={2}
-                opacity={segment.isIllustrative ? 0.4 : 0.8}
+                weight={3}
+                opacity={segment.isIllustrative ? 0.5 : 0.8}
               />
             ))}
 
-            {/* Drawing preview - visible while drawing */}
+            {/* Drawing preview */}
             {mode === 'draw' && channelPoints.length > 0 && (
               <>
                 <Polyline
                   key="drawing-preview"
                   positions={channelPoints}
                   color="#eab308"
-                  weight={3}
-                  dashArray="8, 4"
-                  opacity={0.9}
+                  weight={4}
+                  dashArray="10, 6"
+                  opacity={1}
                 />
                 {channelPoints.map((point, idx) => (
                   <CircleMarker
                     key={`draw-point-${idx}`}
                     center={point}
-                    radius={idx === 0 ? 10 : 8}
+                    radius={idx === 0 ? 12 : 10}
                     fillColor={idx === 0 ? '#dc2626' : '#eab308'}
                     fillOpacity={1}
                     color="white"
-                    weight={3}
-                    opacity={0.9}
+                    weight={4}
+                    opacity={1}
                   >
                     <Popup>
                       <div className="p-2 text-center">
@@ -366,11 +393,11 @@ export function NetworkMap() {
                   <CircleMarker
                     key="ghost-marker"
                     center={[mousePosition.lat, mousePosition.lng]}
-                    radius={8}
+                    radius={10}
                     fillColor="#22c55e"
-                    fillOpacity={0.5}
+                    fillOpacity={0.6}
                     color="#16a34a"
-                    weight={2}
+                    weight={3}
                     dashArray="4, 4"
                   >
                     <Popup>
@@ -400,8 +427,8 @@ export function NetworkMap() {
                     <Polyline
                       positions={[arrowStart, arrowEnd]}
                       color="#f97316"
-                      weight={3}
-                      opacity={0.9}
+                      weight={4}
+                      opacity={1}
                     />
                     <div
                       className="leaflet-marker-icon"
@@ -445,11 +472,12 @@ export function NetworkMap() {
                 <CircleMarker
                   key={sensor.id}
                   center={coords}
-                  radius={sensor.channelSegmentId ? 8 : 10}
+                  radius={sensor.channelSegmentId ? 10 : 12}
                   fillColor={color}
-                  fillOpacity={0.9}
+                  fillOpacity={1}
                   color="white"
-                  weight={2}
+                  weight={3}
+                  opacity={1}
                   onClick={() => {
                     setSelectedSensor(sensor.id);
                     setPanelOpen(true);
