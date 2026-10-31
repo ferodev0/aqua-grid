@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import DashboardLayout from './DashboardLayout';
 import { useLanguage } from './context/LanguageContext';
-import { PlaceholderPage } from './pages/PlaceholderPage';
+import { NetworkMap } from './pages/NetworkMap';
 import { SensorDetailsPage } from './pages/SensorDetailsPage';
 import { NetworkMap } from './pages/NetworkMap.jsx';
 import { SensorsIndexPage } from './pages/SensorsIndexPage';

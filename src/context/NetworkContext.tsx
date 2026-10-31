@@ -293,6 +293,9 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
   const forcedOfflineRef = useRef(forcedOfflineIds);
   forcedOfflineRef.current = forcedOfflineIds;
 
+  const simStateRef = useRef(simState);
+  simStateRef.current = simState;
+
   const stepOnce = useCallback(() => {
     setSimState((prev) =>
       runSimulationTick(
@@ -493,40 +496,57 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
   // Map Editing Actions (Prototype State Only)
   const addSensor = useCallback((input: NewSensorInput): Sensor => {
     const nowIso = new Date().toISOString();
+    const existingIds = new Set(
+      simStateRef.current.sensors.map((s) => s.id.toUpperCase())
+    );
+    let nextNum = simStateRef.current.sensors.length + 1;
+    while (existingIds.has(`S${String(nextNum).padStart(2, "0")}`)) {
+      nextNum += 1;
+    }
     const generatedId =
-      input.id?.trim() ||
-      `S0${Math.max(5, Math.floor(Math.random() * 90 + 10))}`;
+      input.id?.trim() || `S${String(nextNum).padStart(2, "0")}`;
+
+    const segment = simStateRef.current.channelSegments.find(
+      (seg) => seg.id === input.channelSegmentId
+    );
     const village =
-      input.village?.trim() || input.location.village?.trim() || "Lefke";
+      input.village?.trim() ||
+      input.location.village?.trim() ||
+      segment?.village ||
+      "Lefke";
     const area =
       input.area?.trim() ||
       input.location.area?.trim() ||
+      segment?.area ||
       input.location.label ||
       "General Area";
 
+    const baseFlow = Number(input.baseline.flowRateLps) || 8.0;
+    const baseLevel = Number(input.baseline.waterLevelM) || 0.3;
+
     const newSensor: Sensor = {
       id: generatedId,
-      name: input.name.trim() || `Demo Station ${generatedId}`,
+      name: input.name.trim() || `Virtual Station ${generatedId}`,
       channelSegmentId: input.channelSegmentId || "SEG-01",
       village,
       area,
       location: {
         lat: input.location.lat ?? 35.114,
         lng: input.location.lng ?? 32.852,
-        label: input.location.label || "Illustrative Demonstration Point",
+        label: input.location.label || `${area} (Illustrative)`,
         village,
         area,
         isIllustrative: true,
       },
       baseline: {
-        flowRateLps: Number(input.baseline.flowRateLps) || 8.0,
-        waterLevelM: Number(input.baseline.waterLevelM) || 0.3,
+        flowRateLps: baseFlow,
+        waterLevelM: baseLevel,
       },
       current: {
-        flowRateLps: Number(input.baseline.flowRateLps) || 8.0,
-        waterLevelM: Number(input.baseline.waterLevelM) || 0.3,
-        flowVelocityMps: 0.7,
-        batteryPercent: 100,
+        flowRateLps: baseFlow,
+        waterLevelM: baseLevel,
+        flowVelocityMps: 0.72,
+        batteryPercent: 98,
         signalPercent: 95,
         updatedAt: nowIso,
       },
@@ -534,7 +554,7 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     setSimState((prev) => {
-      const initialPoints = createInitialTelemetryHistory([newSensor], 18);
+      const initialPoints = createInitialTelemetryHistory([newSensor], 36);
       return {
         ...prev,
         sensors: [...prev.sensors, newSensor],
@@ -565,6 +585,20 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
           const nextBaseline = updates.baseline
             ? { ...sensor.baseline, ...updates.baseline }
             : sensor.baseline;
+          const nextCurrent = updates.baseline
+            ? {
+                ...sensor.current,
+                flowRateLps:
+                  updates.baseline.flowRateLps !== undefined
+                    ? Number(updates.baseline.flowRateLps)
+                    : sensor.current.flowRateLps,
+                waterLevelM:
+                  updates.baseline.waterLevelM !== undefined
+                    ? Number(updates.baseline.waterLevelM)
+                    : sensor.current.waterLevelM,
+                updatedAt: nowIso,
+              }
+            : sensor.current;
           const nextLocation = {
             ...sensor.location,
             ...(updates.location ?? {}),
@@ -584,6 +618,7 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
             area: nextArea,
             location: nextLocation,
             baseline: nextBaseline,
+            current: nextCurrent,
             status: updates.status ?? sensor.status,
           };
 
@@ -630,13 +665,18 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
     (
       input: Omit<ChannelSegment, "id" | "isIllustrative"> & { id?: string }
     ): ChannelSegment => {
+      const existingSegIds = new Set(
+        simStateRef.current.channelSegments.map((seg) => seg.id.toUpperCase())
+      );
+      let nextSegNum = simStateRef.current.channelSegments.length + 1;
+      while (existingSegIds.has(`SEG-${String(nextSegNum).padStart(2, "0")}`)) {
+        nextSegNum += 1;
+      }
       const newSegment: ChannelSegment = {
-        id:
-          input.id?.trim() ||
-          `SEG-0${Math.max(5, Math.floor(Math.random() * 90 + 10))}`,
+        id: input.id?.trim() || `SEG-${String(nextSegNum).padStart(2, "0")}`,
         name: input.name,
-        village: input.village,
-        area: input.area,
+        village: input.village || "Lefke",
+        area: input.area || "General Area",
         upstreamSensorId: input.upstreamSensorId,
         downstreamSensorId: input.downstreamSensorId,
         path: input.path,

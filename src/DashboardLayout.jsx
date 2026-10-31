@@ -272,19 +272,19 @@ export default function DashboardLayout() {
             {t('dashboard.maxPowerPotentialSub')}
           </p>
 
-          <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
-            <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">{t('dashboard.maxPotentialByVillage')}</div>
+          <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl dark:shadow-slate-950/60 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">{t('dashboard.maxPotentialByVillage')}</div>
             <TopThreeList
               items={villagePowerData}
               renderItem={(data, idx) => (
                 <div key={data.id} className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600 font-medium truncate pr-2 max-w-[120px]" title={data.name}>
+                  <span className="text-slate-600 dark:text-slate-300 font-medium truncate pr-2 max-w-[120px]" title={data.name}>
                     <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLOR_PALETTE[idx % COLOR_PALETTE.length] }}></span>
                     {data.name}
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] text-slate-400">({data.sensorId})</span>
-                    <span className="font-bold text-teal-700">{data.powerWatts.toFixed(0)} W</span>
+                    <span className="font-bold text-teal-700 dark:text-teal-400">{data.powerWatts.toFixed(0)} W</span>
                   </div>
                 </div>
               )}
@@ -310,13 +310,13 @@ export default function DashboardLayout() {
             )}
           </p>
 
-          <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
-            <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">{t('dashboard.statusByVillage')}</div>
+          <div className="absolute top-full left-0 mt-2 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl dark:shadow-slate-950/60 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">{t('dashboard.statusByVillage')}</div>
             <TopThreeList
               items={villageActiveData}
               renderItem={(data, idx) => (
                 <div key={data.id} className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600 font-medium">
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">
                     <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLOR_PALETTE[idx % COLOR_PALETTE.length] }}></span>
                     {data.name}
                   </span>
@@ -338,7 +338,7 @@ export default function DashboardLayout() {
             {summaryMetrics.referenceInflowLps.toFixed(1)} L/s
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            {t('dashboard.downstreamFlow', { sensorId: summaryMetrics.terminalSensorId })}{' '}
+            {t('dashboard.downstreamFlow', { sensorId: summaryMetrics.referenceSensorId ? summaryMetrics.terminalSensorId : 'S04' })}{' '}
             <span
               className={
                 isCrisisActive ? 'text-red-600 font-semibold' : 'text-slate-600'
@@ -348,19 +348,19 @@ export default function DashboardLayout() {
             </span>
           </p>
 
-          <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
-            <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">{t('dashboard.maxFlowByVillage')}</div>
+          <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl dark:shadow-slate-950/60 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">{t('dashboard.maxFlowByVillage')}</div>
             <TopThreeList
               items={villageMaxFlowData}
               renderItem={(data, idx) => (
                 <div key={data.id} className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600 font-medium truncate pr-2 max-w-[120px]" title={data.name}>
+                  <span className="text-slate-600 dark:text-slate-300 font-medium truncate pr-2 max-w-[120px]" title={data.name}>
                     <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLOR_PALETTE[idx % COLOR_PALETTE.length] }}></span>
                     {data.name}
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] text-slate-400">({data.sensorId})</span>
-                    <span className="font-bold text-slate-800">
+                    <span className="font-bold text-slate-800 dark:text-slate-100">
                       {data.flowRateLps.toFixed(2)}
                     </span>
                   </div>
