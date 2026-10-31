@@ -38,12 +38,33 @@ const NAV_ITEMS = [
     to: '/sensors',
     match: (pathname) => pathname.startsWith('/sensors'),
     icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M13 10V3L4 14h7v7l9-11h-7z"
-      />
+      <>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M8.5 8.5a5 5 0 000 7"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M5.5 5.5a9.5 9.5 0 000 13"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15.5 8.5a5 5 0 010 7"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M18.5 5.5a9.5 9.5 0 010 13"
+        />
+      </>
     ),
   },
   {
