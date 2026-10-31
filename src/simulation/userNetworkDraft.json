@@ -1,0 +1,283 @@
+{
+  "version": 1,
+  "exportedAt": "2026-10-31T22:37:27.993Z",
+  "sensors": [
+    {
+      "id": "S01",
+      "name": "Upper Channel",
+      "channelSegmentId": "SEG-01",
+      "village": "Lefke",
+      "area": "Upper Valley Intake",
+      "location": {
+        "lat": 35.10726,
+        "lng": 32.84804,
+        "label": "Upper Valley Intake (Illustrative)",
+        "village": "Lefke",
+        "area": "Upper Valley Intake",
+        "isIllustrative": true
+      },
+      "baseline": {
+        "flowRateLps": 12,
+        "waterLevelM": 0.42
+      },
+      "current": {
+        "flowRateLps": 12,
+        "waterLevelM": 0.42,
+        "flowVelocityMps": 0.86,
+        "batteryPercent": 96,
+        "signalPercent": 94,
+        "updatedAt": "2026-10-31T22:37:27.993Z"
+      },
+      "status": "normal"
+    },
+    {
+      "id": "S02",
+      "name": "Central Channel",
+      "channelSegmentId": "SEG-02",
+      "village": "Lefke",
+      "area": "Central Town Aqueduct",
+      "location": {
+        "lat": 35.10956,
+        "lng": 32.84955,
+        "label": "Central Town Aqueduct Section (Illustrative)",
+        "village": "Lefke",
+        "area": "Central Town Aqueduct",
+        "isIllustrative": true
+      },
+      "baseline": {
+        "flowRateLps": 10.5,
+        "waterLevelM": 0.38
+      },
+      "current": {
+        "flowRateLps": 10.5,
+        "waterLevelM": 0.38,
+        "flowVelocityMps": 0.79,
+        "batteryPercent": 91,
+        "signalPercent": 92,
+        "updatedAt": "2026-10-31T22:37:27.993Z"
+      },
+      "status": "normal"
+    },
+    {
+      "id": "S03",
+      "name": "Village Approach",
+      "channelSegmentId": "SEG-03",
+      "village": "Bağlıköy",
+      "area": "Orchard Distribution Zone",
+      "location": {
+        "lat": 35.1123,
+        "lng": 32.85189,
+        "label": "Orchard & Village Distribution Approach (Illustrative)",
+        "village": "Bağlıköy",
+        "area": "Orchard Distribution Zone",
+        "isIllustrative": true
+      },
+      "baseline": {
+        "flowRateLps": 8,
+        "waterLevelM": 0.31
+      },
+      "current": {
+        "flowRateLps": 8,
+        "waterLevelM": 0.31,
+        "flowVelocityMps": 0.68,
+        "batteryPercent": 88,
+        "signalPercent": 85,
+        "updatedAt": "2026-10-31T22:37:27.993Z"
+      },
+      "status": "normal"
+    },
+    {
+      "id": "S04",
+      "name": "Lower Channel",
+      "channelSegmentId": "SEG-04",
+      "village": "Gaziveren",
+      "area": "Lower Agricultural Plains",
+      "location": {
+        "lat": 35.11326,
+        "lng": 32.8541,
+        "label": "Lower Agricultural Outlying Section (Illustrative)",
+        "village": "Gaziveren",
+        "area": "Lower Agricultural Plains",
+        "isIllustrative": true
+      },
+      "baseline": {
+        "flowRateLps": 6.5,
+        "waterLevelM": 0.25
+      },
+      "current": {
+        "flowRateLps": 6.5,
+        "waterLevelM": 0.25,
+        "flowVelocityMps": 0.58,
+        "batteryPercent": 84,
+        "signalPercent": 81,
+        "updatedAt": "2026-10-31T22:37:27.993Z"
+      },
+      "status": "normal"
+    }
+  ],
+  "channelSegments": [
+    {
+      "id": "SEG-01",
+      "name": "Upper Feeder Section (Intake to S01)",
+      "village": "Lefke",
+      "area": "Upper Valley Intake",
+      "downstreamSensorId": "S01",
+      "path": [
+        {
+          "lat": 35.10692,
+          "lng": 32.84653
+        },
+        {
+          "lat": 35.10694,
+          "lng": 32.84697
+        },
+        {
+          "lat": 35.10726,
+          "lng": 32.84804
+        }
+      ],
+      "isIllustrative": true
+    },
+    {
+      "id": "SEG-02",
+      "name": "Upper-to-Central Transit (S01 to S02)",
+      "village": "Lefke",
+      "area": "Central Town Aqueduct",
+      "upstreamSensorId": "S01",
+      "downstreamSensorId": "S02",
+      "path": [
+        {
+          "lat": 35.10726,
+          "lng": 32.84804
+        },
+        {
+          "lat": 35.10738,
+          "lng": 32.84878
+        },
+        {
+          "lat": 35.10757,
+          "lng": 32.84936
+        },
+        {
+          "lat": 35.10782,
+          "lng": 32.84958
+        },
+        {
+          "lat": 35.10797,
+          "lng": 32.84976
+        },
+        {
+          "lat": 35.10829,
+          "lng": 32.84973
+        },
+        {
+          "lat": 35.1086,
+          "lng": 32.84963
+        },
+        {
+          "lat": 35.1089,
+          "lng": 32.84954
+        },
+        {
+          "lat": 35.1094,
+          "lng": 32.84952
+        },
+        {
+          "lat": 35.10956,
+          "lng": 32.84955
+        }
+      ],
+      "isIllustrative": true
+    },
+    {
+      "id": "SEG-03",
+      "name": "Central-to-Village Distribution (S02 to S03)",
+      "village": "Bağlıköy",
+      "area": "Orchard Distribution Zone",
+      "upstreamSensorId": "S02",
+      "downstreamSensorId": "S03",
+      "path": [
+        {
+          "lat": 35.10956,
+          "lng": 32.84955
+        },
+        {
+          "lat": 35.11009,
+          "lng": 32.84969
+        },
+        {
+          "lat": 35.11047,
+          "lng": 32.84973
+        },
+        {
+          "lat": 35.11104,
+          "lng": 32.84975
+        },
+        {
+          "lat": 35.11147,
+          "lng": 32.84973
+        },
+        {
+          "lat": 35.11193,
+          "lng": 32.84967
+        },
+        {
+          "lat": 35.11218,
+          "lng": 32.84961
+        },
+        {
+          "lat": 35.11154,
+          "lng": 32.8511
+        },
+        {
+          "lat": 35.11218,
+          "lng": 32.85139
+        },
+        {
+          "lat": 35.1123,
+          "lng": 32.85189
+        }
+      ],
+      "isIllustrative": true
+    },
+    {
+      "id": "SEG-04",
+      "name": "Outlying Lower Reach (S03 to S04)",
+      "village": "Gaziveren",
+      "area": "Lower Agricultural Plains",
+      "upstreamSensorId": "S03",
+      "downstreamSensorId": "S04",
+      "path": [
+        {
+          "lat": 35.1123,
+          "lng": 32.85189
+        },
+        {
+          "lat": 35.11236,
+          "lng": 32.85217
+        },
+        {
+          "lat": 35.11254,
+          "lng": 32.85249
+        },
+        {
+          "lat": 35.11281,
+          "lng": 32.85269
+        },
+        {
+          "lat": 35.11311,
+          "lng": 32.85275
+        },
+        {
+          "lat": 35.11331,
+          "lng": 32.85301
+        },
+        {
+          "lat": 35.11326,
+          "lng": 32.8541
+        }
+      ],
+      "isIllustrative": true
+    }
+  ]
+}

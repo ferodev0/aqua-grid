@@ -7,12 +7,8 @@ const TIME_RANGES = [
   { id: '7d', label: '7d' },
 ];
 
-const SENSOR_COLORS = {
-  S01: '#0d9488',
-  S02: '#0284c7',
-  S03: '#d97706',
-  S04: '#e11d48',
-};
+/** Single accent for individual sensor detail charts (dashboard multi-series keeps its palette). */
+const SINGLE_SENSOR_CHART_COLOR = '#0d9488'; // teal-600
 
 function formatTime(isoString) {
   if (!isoString) return '--:--:--';
@@ -48,7 +44,7 @@ export function SensorTelemetryChart({
   const innerWidth = chartWidth - padLeft - padRight;
   const innerHeight = chartHeight - padTop - padBottom;
   const maxFlowY = 15;
-  const color = SENSOR_COLORS[sensorId] || '#0f766e';
+  const color = SINGLE_SENSOR_CHART_COLOR;
   const series = points ?? [];
 
   const coords = series.map((pt, idx) => {

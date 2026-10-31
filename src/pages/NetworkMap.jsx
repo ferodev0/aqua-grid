@@ -36,33 +36,16 @@ const STATUS_MARKER_COLORS = {
   offline: '#64748b', // slate-500 (Grey)
 };
 
-/**
- * Candidate micro-hydropower & distribution pool points (Spec Section 7.2).
- */
-const CANDIDATE_POINTS = [
-  {
-    id: 'HYDRO-01',
-    type: 'hydropower',
-    nameKey: 'map.hydro1Name',
-    noteKey: 'map.hydro1Note',
-    lat: 35.1091,
-    lng: 32.8476,
-    headM: 2.8,
-    efficiency: 0.65,
-    referenceSensorId: 'S01',
-  },
-  {
-    id: 'POOL-01',
-    type: 'pool',
-    nameKey: 'map.pool1Name',
-    noteKey: 'map.pool1Note',
-    lat: 35.1158,
-    lng: 32.8532,
-    headM: 1.9,
-    efficiency: 0.65,
-    referenceSensorId: 'S03',
-  },
-];
+const SENSOR_ALERT_CARD_STYLES = {
+  warning:
+    'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/45 dark:text-amber-200',
+  critical:
+    'border-red-300 bg-red-50 text-red-900 dark:border-red-800/70 dark:bg-red-950/45 dark:text-red-200',
+};
+
+function isAlertingStatus(status) {
+  return status === 'warning' || status === 'critical';
+}
 
 function formatTimeAgo(isoString, t, locale) {
   if (!isoString) return '—';
@@ -430,6 +413,7 @@ function SchematicNetworkDiagram({
           const color =
             STATUS_MARKER_COLORS[sensor.status] || STATUS_MARKER_COLORS.normal;
           const isSelected = sensor.id === selectedSensorId;
+          const isAlerting = isAlertingStatus(sensor.status);
 
           return (
             <g
@@ -448,13 +432,37 @@ function SchematicNetworkDiagram({
                   strokeDasharray="4 3"
                 />
               )}
+              {isAlerting && (
+                <>
+                  <circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r="26"
+                    fill={color}
+                    fillOpacity="0.28"
+                    stroke="#ffffff"
+                    strokeWidth="3"
+                    className="aqua-sensor-pulse-halo"
+                  />
+                  <circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r="20"
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="4"
+                    className="aqua-sensor-pulse-ring"
+                  />
+                </>
+              )}
               <circle
                 cx={pt.x}
                 cy={pt.y}
                 r="12"
                 fill={color}
-                stroke="#0f172a"
-                strokeWidth="3"
+                stroke="#ffffff"
+                strokeWidth={isAlerting ? 4 : 3}
+                className={isAlerting ? 'aqua-sensor-pulse' : undefined}
               />
               <text
                 x={pt.x}
@@ -530,19 +538,20 @@ export function NetworkMap({ title }) {
     updateChannelSegment,
     removeChannelSegment,
     toggleSensorOffline,
-    estimateHydropower,
+    exportNetworkDraft,
+    importNetworkDraft,
   } = useNetwork();
+
+  const draftFileInputRef = useRef(null);
 
   // Map view & interaction state
   const [viewType, setViewType] = useState('map'); // 'map' | 'schematic'
   const [mode, setMode] = useState('view'); // 'view' | 'place' | 'draw'
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
-  const [showCandidatePoints, setShowCandidatePoints] = useState(true);
 
   // Selection state (stores IDs so data is always read live from simulation)
   const [selectedSensorId, setSelectedSensorId] = useState(null);
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
-  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [flyTarget, setFlyTarget] = useState(null);
   const [resetViewCounter, setResetViewCounter] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -578,25 +587,21 @@ export function NetworkMap({ title }) {
     [channelSegments, selectedSegmentId]
   );
 
-  const selectedCandidate = useMemo(
-    () => CANDIDATE_POINTS.find((pt) => pt.id === selectedCandidateId) ?? null,
-    [selectedCandidateId]
-  );
-
-  const selectedCandidateEstimate = useMemo(() => {
-    if (!selectedCandidate) return null;
-    const refSensor =
-      sensors.find((s) => s.id === selectedCandidate.referenceSensorId) ??
-      sensors[0];
-    return {
-      refSensor,
-      estimate: estimateHydropower({
-        flowRateLps: refSensor?.current.flowRateLps ?? 10,
-        netHeadM: selectedCandidate.headM,
-        efficiency: selectedCandidate.efficiency,
-      }),
-    };
-  }, [selectedCandidate, sensors, estimateHydropower]);
+  const selectedSensorAlertSummary = useMemo(() => {
+    if (!selectedSensor) return { latest: null, total: 0 };
+    const sensorId = selectedSensor.id.toLowerCase();
+    const matching = alerts
+      .filter(
+        (alert) =>
+          alert.status === 'active' &&
+          isAlertingStatus(alert.severity) &&
+          alert.sensorIds.some((id) => id.toLowerCase() === sensorId)
+      )
+      .sort(
+        (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || 0
+      );
+    return { latest: matching[0] ?? null, total: matching.length };
+  }, [alerts, selectedSensor]);
 
   const buildSensorFormValues = useCallback(
     (sensor) => {
@@ -649,7 +654,6 @@ export function NetworkMap({ title }) {
     (sensorId, shouldFly = false, sensorOverride = null) => {
       setSelectedSensorId(sensorId);
       setSelectedSegmentId(null);
-      setSelectedCandidateId(null);
       setConfirmDeleteId(null);
       const targetSensor =
         sensorOverride || sensors.find((s) => s.id === sensorId);
@@ -666,22 +670,12 @@ export function NetworkMap({ title }) {
   const handleSelectSegment = useCallback((segmentId) => {
     setSelectedSegmentId(segmentId);
     setSelectedSensorId(null);
-    setSelectedCandidateId(null);
     setConfirmDeleteId(null);
-  }, []);
-
-  const handleSelectCandidate = useCallback((candidateId) => {
-    setSelectedCandidateId(candidateId);
-    setSelectedSensorId(null);
-    setSelectedSegmentId(null);
-    setConfirmDeleteId(null);
-    setIsEditPanelOpen(false);
   }, []);
 
   const clearMapSelection = useCallback(() => {
     setSelectedSensorId(null);
     setSelectedSegmentId(null);
-    setSelectedCandidateId(null);
     setConfirmDeleteId(null);
     setIsEditPanelOpen(false);
   }, []);
@@ -990,17 +984,6 @@ export function NetworkMap({ title }) {
               {summaryMetrics.openAlertsCount}
             </strong>
           </div>
-
-          <div className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600 xl:flex">
-            <span>
-              {t('map.refInflowLabel', {
-                id: summaryMetrics.referenceSensorId,
-              })}
-            </span>
-            <strong className="font-mono font-bold text-slate-800">
-              {summaryMetrics.referenceInflowLps.toFixed(1)} L/s
-            </strong>
-          </div>
         </div>
 
         {/* Interactive Toolbar */}
@@ -1062,6 +1045,46 @@ export function NetworkMap({ title }) {
               >
                 {t('map.centerLefkeBtn')}
               </button>
+
+              <button
+                type="button"
+                onClick={() => exportNetworkDraft()}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                title={t('map.exportDraftTooltip')}
+              >
+                {t('map.exportDraftBtn')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => draftFileInputRef.current?.click()}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                title={t('map.importDraftTooltip')}
+              >
+                {t('map.importDraftBtn')}
+              </button>
+
+              <input
+                ref={draftFileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    const parsed = JSON.parse(text);
+                    const ok = importNetworkDraft(parsed);
+                    if (!ok) {
+                      window.alert(t('map.importDraftInvalid'));
+                    }
+                  } catch {
+                    window.alert(t('map.importDraftInvalid'));
+                  }
+                }}
+              />
             </>
           )}
 
@@ -1273,35 +1296,6 @@ export function NetworkMap({ title }) {
                 );
               })}
 
-              {/* Candidate Hydropower & Pool Points (Spec Section 7.2) */}
-              {showCandidatePoints &&
-                CANDIDATE_POINTS.map((pt) => {
-                  const isSelected = pt.id === selectedCandidateId;
-                  return (
-                    <CircleMarker
-                      key={pt.id}
-                      center={[pt.lat, pt.lng]}
-                      radius={isSelected ? 10 : 7}
-                      pathOptions={{
-                        fillColor:
-                          pt.type === 'hydropower' ? '#0284c7' : '#8b5cf6',
-                        fillOpacity: 0.9,
-                        color: isSelected
-                          ? isDark
-                            ? '#2dd4bf'
-                            : '#0f172a'
-                          : isDark
-                          ? '#0f172a'
-                          : '#ffffff',
-                        weight: isSelected ? 3.5 : 2,
-                      }}
-                      eventHandlers={{
-                        click: () => handleSelectCandidate(pt.id),
-                      }}
-                    />
-                  );
-                })}
-
               {/* Drawing in-progress preview */}
               {mode === 'draw' && channelPoints.length > 0 && (
                 <>
@@ -1336,38 +1330,71 @@ export function NetworkMap({ title }) {
                   STATUS_MARKER_COLORS[sensor.status] ||
                   STATUS_MARKER_COLORS.normal;
                 const isSelected = sensor.id === selectedSensorId;
+                const isAlerting = isAlertingStatus(sensor.status);
 
                 return (
-                  <CircleMarker
-                    key={sensor.id}
-                    center={coords}
-                    radius={isSelected ? 13 : 10}
-                    pathOptions={{
-                      fillColor: markerColor,
-                      fillOpacity: 0.95,
-                      color: isSelected
-                        ? isDark
-                          ? '#2dd4bf'
-                          : '#0f172a'
-                        : isDark
-                        ? '#0f172a'
-                        : '#ffffff',
-                      weight: isSelected ? 3.5 : 2.5,
-                    }}
-                    eventHandlers={{
-                      click: () => handleSelectSensor(sensor.id, false),
-                    }}
-                  >
-                    <Tooltip
-                      permanent
-                      interactive={false}
-                      direction="top"
-                      offset={[0, -10]}
-                      className="font-mono text-[10px] font-bold"
+                  <Fragment key={sensor.id}>
+                    {isAlerting && (
+                      <>
+                        <CircleMarker
+                          center={coords}
+                          radius={isSelected ? 34 : 30}
+                          pathOptions={{
+                            fillColor: markerColor,
+                            fillOpacity: 0.4,
+                            color: '#ffffff',
+                            weight: 3,
+                            opacity: 1,
+                            className: 'aqua-sensor-pulse-halo',
+                            interactive: false,
+                          }}
+                        />
+                        <CircleMarker
+                          center={coords}
+                          radius={isSelected ? 24 : 20}
+                          pathOptions={{
+                            fillColor: markerColor,
+                            fillOpacity: 0.35,
+                            color: markerColor,
+                            weight: 4,
+                            opacity: 1,
+                            className: 'aqua-sensor-pulse-ring',
+                            interactive: false,
+                          }}
+                        />
+                      </>
+                    )}
+                    <CircleMarker
+                      center={coords}
+                      radius={isSelected ? 14 : isAlerting ? 12 : 10}
+                      pathOptions={{
+                        fillColor: markerColor,
+                        fillOpacity: 1,
+                        color: isSelected
+                          ? isDark
+                            ? '#2dd4bf'
+                            : '#0f172a'
+                          : '#ffffff',
+                        weight: isAlerting || isSelected ? 4 : 2.5,
+                        className: isAlerting
+                          ? 'aqua-sensor-pulse'
+                          : undefined,
+                      }}
+                      eventHandlers={{
+                        click: () => handleSelectSensor(sensor.id, false),
+                      }}
                     >
-                      {sensor.id}
-                    </Tooltip>
-                  </CircleMarker>
+                      <Tooltip
+                        permanent
+                        interactive={false}
+                        direction="top"
+                        offset={[0, -10]}
+                        className="font-mono text-[10px] font-bold"
+                      >
+                        {sensor.id}
+                      </Tooltip>
+                    </CircleMarker>
+                  </Fragment>
                 );
               })}
             </MapContainer>
@@ -1437,6 +1464,43 @@ export function NetworkMap({ title }) {
                 </div>
               </div>
 
+              {selectedSensorAlertSummary.latest && (() => {
+                const alert = selectedSensorAlertSummary.latest;
+                const { title, message } = tAlert(alert);
+                const extraCount = selectedSensorAlertSummary.total - 1;
+                return (
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    <div
+                      className={`rounded-lg border p-2 ${
+                        SENSOR_ALERT_CARD_STYLES[alert.severity] ||
+                        SENSOR_ALERT_CARD_STYLES.warning
+                      }`}
+                    >
+                      <div className="text-[10px] font-bold uppercase tracking-wider">
+                        {t(`severity.${alert.severity}`)}
+                      </div>
+                      <div className="mt-0.5 text-xs font-semibold leading-snug">
+                        {title}
+                      </div>
+                      <p className="mt-0.5 text-[11px] leading-relaxed opacity-90">
+                        {message}
+                      </p>
+                    </div>
+                    {extraCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/sensors/${selectedSensor.id}`)
+                        }
+                        className="text-left text-[11px] font-semibold text-teal-700 hover:text-teal-800 hover:underline dark:text-teal-400 dark:hover:text-teal-300"
+                      >
+                        {t('map.moreAlertsLink', { count: extraCount })}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[10px] text-slate-400">
                   {t('map.updatedAgo', {
@@ -1467,7 +1531,7 @@ export function NetworkMap({ title }) {
             </div>
           )}
 
-          {selectedSegment && !selectedSensor && !selectedCandidate && (
+          {selectedSegment && !selectedSensor && (
             <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1517,110 +1581,14 @@ export function NetworkMap({ title }) {
             </div>
           )}
 
-          {selectedCandidate && selectedCandidateEstimate && (
-            <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span
-                    className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
-                      selectedCandidate.type === 'hydropower'
-                        ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300'
-                        : 'bg-violet-100 text-violet-800 dark:bg-violet-950/70 dark:text-violet-300'
-                    }`}
-                  >
-                    {selectedCandidate.type === 'hydropower'
-                      ? t('map.hydroCandidateBadge')
-                      : t('map.poolCandidateBadge')}
-                  </span>
-                  <h4 className="mt-1.5 text-sm font-bold text-slate-800 dark:text-slate-100">
-                    {t(selectedCandidate.nameKey)}
-                  </h4>
-                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                    {t(selectedCandidate.noteKey)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearMapSelection}
-                  className="shrink-0 rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                  aria-label={t('map.closeCard')}
-                  title={t('map.closeCard')}
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="mt-2 space-y-1.5 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-900/70">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {t('map.refFlowLabel', {
-                      id: selectedCandidateEstimate.refSensor?.id ?? 'S01',
-                    })}
-                  </span>
-                  <strong className="font-mono text-slate-800 dark:text-slate-100">
-                    {(
-                      selectedCandidateEstimate.refSensor?.current.flowRateLps ??
-                      0
-                    ).toFixed(2)}{' '}
-                    L/s
-                  </strong>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {t('map.assumedHeadLabel')}
-                  </span>
-                  <strong className="font-mono text-slate-800 dark:text-slate-100">
-                    {selectedCandidate.headM} m (
-                    {Math.round(selectedCandidate.efficiency * 100)}%{' '}
-                    {t('map.effShort')})
-                  </strong>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {t('map.theoreticalPotentialLabel')}
-                  </span>
-                  <strong className="font-mono text-teal-700 dark:text-teal-400">
-                    ~{selectedCandidateEstimate.estimate.powerWatts.toFixed(0)} W
-                    (
-                    {selectedCandidateEstimate.estimate.dailyEnergyKwh.toFixed(
-                      2
-                    )}{' '}
-                    kWh/d)
-                  </strong>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Map Legend Overlay (Bottom-Right of Map, Spec Section 7.2) */}
+          {/* Map Legend Overlay (Bottom-Right of Map) */}
           <div className="pointer-events-auto absolute bottom-3 right-3 z-[500] rounded-xl border border-slate-200 bg-white/95 p-3 text-[11px] shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
-            <div className="mb-1.5 flex items-center justify-between gap-3">
+            <div className="mb-1.5">
               <span className="font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 {t('map.legendTitle')}
               </span>
-              <label className="flex cursor-pointer items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={showCandidatePoints}
-                  onChange={(e) => setShowCandidatePoints(e.target.checked)}
-                />
-                {t('map.hydroPoolsToggle')}
-              </label>
             </div>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-slate-700 dark:text-slate-200">
+            <div className="flex flex-col gap-1 text-slate-700 dark:text-slate-200">
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 {t('status.normal')}
@@ -1637,9 +1605,6 @@ export function NetworkMap({ title }) {
                 <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
                 {t('status.offline')}
               </span>
-            </div>
-            <div className="mt-1.5 border-t border-slate-100 pt-1 text-[10px] text-slate-400 dark:border-slate-700">
-              {t('map.legendFooter')}
             </div>
           </div>
 

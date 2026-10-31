@@ -350,3 +350,52 @@ html.dark .aqua-about-footer {
 html.dark .aqua-about-footer > span:first-child {
   color: #5eead4;
 }
+
+/* Map / schematic: high-contrast pulse for warning / critical markers */
+@keyframes aqua-sensor-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1.25) saturate(1.35);
+  }
+  50% {
+    opacity: 0.12;
+    filter: brightness(0.85) saturate(1);
+  }
+}
+
+@keyframes aqua-sensor-pulse-ring {
+  0%,
+  100% {
+    opacity: 1;
+    stroke-width: 4;
+  }
+  50% {
+    opacity: 0.12;
+    stroke-width: 2;
+  }
+}
+
+@keyframes aqua-sensor-pulse-halo {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 0.08;
+  }
+}
+
+.aqua-sensor-pulse {
+  animation: aqua-sensor-pulse 0.85s ease-in-out infinite;
+}
+
+.aqua-sensor-pulse-ring {
+  animation: aqua-sensor-pulse-ring 0.85s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.aqua-sensor-pulse-halo {
+  animation: aqua-sensor-pulse-halo 0.85s ease-in-out infinite;
+  pointer-events: none;
+}

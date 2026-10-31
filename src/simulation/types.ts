@@ -115,6 +115,7 @@ export interface NetworkSummaryMetrics {
   attentionSensorsCount: number;
   warningSensorsCount: number;
   criticalSensorsCount: number;
+  /** Active warning + critical alerts only (info/system notices excluded) */
   openAlertsCount: number;
   /** Reference inflow measured at the primary upstream station (S01) to avoid summing serial sensors on the same channel */
   referenceInflowLps: number;

@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import { deriveSensorStatus, evaluateNetworkAlerts } from "../simulation/alertRules";
+import { syncSegmentsForSensor } from "../simulation/channelGeometry";
 import {
   createInitialAlerts,
   createInitialSensors,
@@ -16,6 +17,15 @@ import {
   DEMO_MODE_LABEL,
   INITIAL_CHANNEL_SEGMENTS,
 } from "../simulation/demoData";
+import {
+  applyMetadataAndSyncPaths,
+  buildNetworkDraft,
+  downloadNetworkDraft,
+  loadNetworkDraftFromLocalStorage,
+  parseNetworkDraft,
+  saveNetworkDraftToLocalStorage,
+  type NetworkDraft,
+} from "../simulation/networkDraft";
 import {
   buildVillageSensorGroups,
   calculateHydropowerEstimate,
@@ -129,6 +139,15 @@ export interface NetworkContextValue {
   ) => void;
   removeChannelSegment: (segmentId: string) => void;
 
+  /** Download + localStorage snapshot of current sensors/segments for agent handoff */
+  exportNetworkDraft: () => NetworkDraft;
+  /** Replace live network from a parsed draft (file / localStorage) */
+  importNetworkDraft: (draft: NetworkDraft) => boolean;
+  /** Load last draft from localStorage if present */
+  loadNetworkDraftFromStorage: () => boolean;
+  /** Apply S01–S04 backup metadata onto current sensors (keep editor lat/lng) */
+  applySensorMetadataBackup: () => number;
+
   // Selectors & Calculators
   getSensorById: (sensorId: string) => Sensor | undefined;
   getSensorsByVillage: (village: string) => Sensor[];
@@ -216,8 +235,29 @@ function createFallbackContextValue(): NetworkContextValue {
     toggleSensorOffline: warnMissingProvider,
     addSensor: (input) => {
       warnMissingProvider();
-      return initial.sensors[0] ?? createInitialSensors()[0];
       void input;
+      return {
+        id: "S-FALLBACK",
+        name: "Fallback",
+        channelSegmentId: "SEG-01",
+        village: "Lefke",
+        area: "Upper Valley Intake",
+        location: {
+          lat: 35.1135,
+          lng: 32.851,
+          label: "Fallback",
+          village: "Lefke",
+          area: "Upper Valley Intake",
+          isIllustrative: true,
+        },
+        baseline: { flowRateLps: 8, waterLevelM: 0.3 },
+        current: {
+          flowRateLps: 8,
+          waterLevelM: 0.3,
+          updatedAt: new Date().toISOString(),
+        },
+        status: "normal",
+      };
     },
     updateSensor: warnMissingProvider,
     removeSensor: warnMissingProvider,
@@ -236,6 +276,22 @@ function createFallbackContextValue(): NetworkContextValue {
     },
     updateChannelSegment: warnMissingProvider,
     removeChannelSegment: warnMissingProvider,
+    exportNetworkDraft: () => {
+      warnMissingProvider();
+      return buildNetworkDraft([], []);
+    },
+    importNetworkDraft: () => {
+      warnMissingProvider();
+      return false;
+    },
+    loadNetworkDraftFromStorage: () => {
+      warnMissingProvider();
+      return false;
+    },
+    applySensorMetadataBackup: () => {
+      warnMissingProvider();
+      return 0;
+    },
     getSensorById: (sensorId) =>
       initial.sensors.find(
         (s) => s.id.toLowerCase() === sensorId.toLowerCase()
@@ -322,41 +378,25 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const triggerCrisis = useCallback(() => {
     const nowMs = Date.now();
-    const nowIso = new Date(nowMs).toISOString();
     isCrisisRef.current = true;
     setIsCrisisActive(true);
 
     setSimState((prev) => {
-      const crisisEventAlert: AquaAlert = {
-        id: `ALT-SYS-CRISIS-${nowMs}`,
-        severity: "critical",
-        title:
-          "Crisis Simulation Activated — Unexpected Downstream Flow Reduction",
-        message:
-          "Simulated downstream reduction triggered across Village Approach (S03) and Lower Channel (S04). Upstream stations S01 and S02 remain near baseline. Field inspection of sections SEG-03 and SEG-04 is recommended.",
-        sensorIds: ["S03", "S04"],
-        channelSegmentId: "SEG-03",
-        createdAt: nowIso,
-        status: "active",
-        source: "simulation",
-      };
-
-      const withoutOldCrisisBanner = prev.alerts.filter(
+      // No crisis banner log — threshold rules emit sensor/section alerts as needed.
+      const withoutCrisisBanner = prev.alerts.filter(
         (a) => !a.id.startsWith("ALT-SYS-CRISIS-")
       );
 
-      const nextState = runSimulationTick(
+      return runSimulationTick(
         {
           ...prev,
-          alerts: [crisisEventAlert, ...withoutOldCrisisBanner],
+          alerts: withoutCrisisBanner,
         },
         thresholdsRef.current,
         true,
         forcedOfflineRef.current,
         nowMs
       );
-
-      return nextState;
     });
   }, []);
 
@@ -633,9 +673,20 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
           return updated;
         });
 
+        const latLngChanged =
+          updates.location?.lat !== undefined ||
+          updates.location?.lng !== undefined;
+        const nextSegments = latLngChanged
+          ? syncSegmentsForSensor(
+              sensorId,
+              prev.channelSegments,
+              nextSensors
+            )
+          : prev.channelSegments;
+
         const nextAlerts = evaluateNetworkAlerts(
           nextSensors,
-          prev.channelSegments,
+          nextSegments,
           prev.alerts,
           thresholdsRef.current,
           nowIso
@@ -644,6 +695,7 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
         return {
           ...prev,
           sensors: nextSensors,
+          channelSegments: nextSegments,
           alerts: nextAlerts,
         };
       });
@@ -714,6 +766,92 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
         (seg) => seg.id !== segmentId
       ),
     }));
+  }, []);
+
+  const exportNetworkDraft = useCallback((): NetworkDraft => {
+    const draft = buildNetworkDraft(
+      simStateRef.current.sensors,
+      simStateRef.current.channelSegments
+    );
+    saveNetworkDraftToLocalStorage(draft);
+    downloadNetworkDraft(draft);
+    return draft;
+  }, []);
+
+  const importNetworkDraft = useCallback((draft: NetworkDraft): boolean => {
+    const parsed = parseNetworkDraft(draft);
+    if (!parsed) return false;
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+    const telemetryHistory = createInitialTelemetryHistory(
+      parsed.sensors,
+      36,
+      5 * 60 * 1000,
+      nowMs
+    );
+    setSimState({
+      sensors: parsed.sensors,
+      channelSegments: parsed.channelSegments,
+      alerts: [
+        {
+          id: "ALT-SYS-IMPORT",
+          severity: "info",
+          title: "Network Draft Imported",
+          message: `Loaded ${parsed.sensors.length} sensors and ${parsed.channelSegments.length} channel segments from draft.`,
+          sensorIds: parsed.sensors.map((s) => s.id),
+          createdAt: nowIso,
+          status: "active",
+          source: "system",
+        },
+      ],
+      telemetryHistory,
+    });
+    saveNetworkDraftToLocalStorage(parsed);
+    return true;
+  }, []);
+
+  const loadNetworkDraftFromStorage = useCallback((): boolean => {
+    const draft = loadNetworkDraftFromLocalStorage();
+    if (!draft) return false;
+    return importNetworkDraft(draft);
+  }, [importNetworkDraft]);
+
+  const applySensorMetadataBackup = useCallback((): number => {
+    const current = simStateRef.current.sensors;
+    if (current.length === 0) return 0;
+    const nowIso = new Date().toISOString();
+    const { sensors: nextSensors, channelSegments: nextSegments } =
+      applyMetadataAndSyncPaths(
+        current,
+        simStateRef.current.channelSegments,
+        nowIso
+      );
+    const telemetryHistory = createInitialTelemetryHistory(
+      nextSensors,
+      36,
+      5 * 60 * 1000,
+      Date.now()
+    );
+    setSimState((prev) => ({
+      ...prev,
+      sensors: nextSensors,
+      channelSegments: nextSegments,
+      telemetryHistory,
+      alerts: [
+        {
+          id: `ALT-META-${Date.now()}`,
+          severity: "info",
+          title: "Backup Metadata Applied",
+          message: `Applied S01–S04 template metadata to ${nextSensors.length} sensor(s). Coordinates from the map editor were preserved.`,
+          sensorIds: nextSensors.map((s) => s.id),
+          createdAt: nowIso,
+          status: "active",
+          source: "system",
+        },
+        ...prev.alerts.filter((a) => a.id !== "ALT-SYS-INIT"),
+      ],
+    }));
+    return nextSensors.length;
   }, []);
 
   // Selectors
@@ -843,6 +981,10 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       addChannelSegment,
       updateChannelSegment,
       removeChannelSegment,
+      exportNetworkDraft,
+      importNetworkDraft,
+      loadNetworkDraftFromStorage,
+      applySensorMetadataBackup,
       getSensorById,
       getSensorsByVillage,
       getSensorsByArea,
@@ -880,6 +1022,10 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       addChannelSegment,
       updateChannelSegment,
       removeChannelSegment,
+      exportNetworkDraft,
+      importNetworkDraft,
+      loadNetworkDraftFromStorage,
+      applySensorMetadataBackup,
       getSensorById,
       getSensorsByVillage,
       getSensorsByArea,

@@ -258,7 +258,11 @@ export function computeNetworkSummaryMetrics(
   const attentionSensorsCount =
     warningSensorsCount + criticalSensorsCount + offlineSensorsCount;
 
-  const openAlertsCount = alerts.filter((a) => a.status === "active").length;
+  const openAlertsCount = alerts.filter(
+    (a) =>
+      a.status === "active" &&
+      (a.severity === "warning" || a.severity === "critical")
+  ).length;
 
   const referenceSensor =
     sensors.find((s) => s.id === "S01") ?? sensors[0];

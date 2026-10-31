@@ -167,6 +167,17 @@ export function evaluateNetworkAlerts(
       continue;
     }
 
+    // If either station is already warning/critical, the per-sensor alert
+    // covers it — skip duplicate section comparison logs.
+    if (upstream.status !== "normal" || downstream.status !== "normal") {
+      if (existingActive) {
+        updatedAlerts = updatedAlerts.map((a) =>
+          a.id === existingActive.id ? { ...a, status: "resolved" } : a
+        );
+      }
+      continue;
+    }
+
     const upstreamRatio =
       upstream.current.flowRateLps / Math.max(upstream.baseline.flowRateLps, 0.01);
     const downstreamRatio =
