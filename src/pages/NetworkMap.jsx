@@ -107,7 +107,7 @@ function MapInteractionController({ mode }) {
 
 export function NetworkMap() {
   const navigate = useNavigate();
-  const { sensors, channelSegments, demoBannerText, addSensor, addChannelSegment } = useNetwork();
+  const { sensors, channelSegments, demoBannerText, addSensor, addChannelSegment, updateChannelSegment } = useNetwork();
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedSensor, setSelectedSensor] = useState(null);
   const panelRef = useRef(null);
@@ -115,6 +115,7 @@ export function NetworkMap() {
   const [mode, setMode] = useState('view');
   const [channelPoints, setChannelPoints] = useState([]);
   const [mousePosition, setMousePosition] = useState(null);
+  const [branchPoint, setBranchPoint] = useState(null); // {parentSegmentId, point: [lat, lng], flowSplitRatio}
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -127,11 +128,57 @@ export function NetworkMap() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Detect if a point falls on an existing channel segment (branch tap)
+  const detectBranchPoint = (latlng, segments) => {
+    const { lat, lng } = latlng;
+    for (const segment of segments) {
+      const path = segment.path;
+      if (path.length < 2) continue;
+      for (let i = 0; i < path.length - 1; i++) {
+        const p1 = path[i];
+        const p2 = path[i + 1];
+        const p1Lat = p1.lat;
+        const p1Lng = p1.lng;
+        const p2Lat = p2.lat;
+        const p2Lng = p2.lng;
+        const x = lng - p1Lng;
+        const y = lat - p1Lat;
+        const dx = p2Lng - p1Lng;
+        const dy = p2Lat - p1Lat;
+        const lenSq = dx * dx + dy * dy;
+        let t = (x * dx + y * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+        const projLat = p1Lat + t * dy;
+        const projLng = p1Lng + t * dx;
+        const dist = Math.sqrt((lat - projLat) ** 2 + (lng - projLng) ** 2);
+        if (dist < 0.01) {
+          // Found branch point - calculate flow split based on position along segment
+          // Points closer to downstream end = more flow goes to branch
+          const flowToBranch = Math.min(0.6, Math.max(0.2, t * 0.5 + 0.1));
+          return {
+            parentSegmentId: segment.id,
+            point: [projLat, projLng],
+            flowToBranch,
+            flowContinues: 1 - flowToBranch,
+          };
+        }
+      }
+    }
+    return null;
+  };
+
   // Use Leaflet's native click event for reliable click detection
   const handleMapClick = useCallback((latlng) => {
     const { lat, lng } = latlng;
 
     if (mode === 'draw') {
+      // Check if first point is on an existing channel segment (branch detection)
+      if (channelPoints.length === 0) {
+        const branch = detectBranchPoint(latlng, channelSegments);
+        if (branch) {
+          setBranchPoint(branch);
+        }
+      }
       setChannelPoints(prev => [...prev, [lat, lng]]);
     } else if (mode === 'place') {
       for (const segment of channelSegments) {
@@ -198,6 +245,7 @@ export function NetworkMap() {
     if (channelPoints.length < 2) {
       setChannelPoints([]);
       setMode('view');
+      setBranchPoint(null);
       return;
     }
 
@@ -205,8 +253,46 @@ export function NetworkMap() {
       id: uuidv4(),
       name: `Channel ${channelSegments.length + 1}`,
       path: channelPoints.map(([lat, lng]) => ({ lat, lng })),
+      isIllustrative: true,
+      flowRateLps: branchPoint ? 5.0 * branchPoint.flowToBranch : 5.0,
+      parentSegmentId: branchPoint?.parentSegmentId || null,
     };
     addChannelSegment(newSegment);
+
+    // Apply flow division to parent segment if this is a branch
+    if (branchPoint) {
+      // Update parent segment's downstream flow
+      const parentSegment = channelSegments.find(s => s.id === branchPoint.parentSegmentId);
+      if (parentSegment) {
+        // The parent continues with reduced flow, new branch takes its share
+        // We store flow info on the parent for the simulation to use
+        const flowContinues = branchPoint.flowContinues;
+        const flowToBranch = branchPoint.flowToBranch;
+        // Parent flow continues at reduced rate (already stored as base, we track division)
+        // Mark parent as having a branch at this point
+        updateChannelSegment(branchPoint.parentSegmentId, {
+          hasBranch: true,
+          branchPoint: branchPoint.point,
+          flowToBranch,
+          flowContinues,
+        });
+      }
+    }
+
+    const sourceSensor = {
+      id: uuidv4(),
+      name: `Source Sensor ${sensors.length + 1}`,
+      channelSegmentId: newSegment.id,
+      location: { lat: channelPoints[0][0], lng: channelPoints[0][1], label: 'Channel source' },
+      status: 'normal',
+      current: {
+        flowRateLps: newSegment.flowRateLps,
+        waterLevelM: 1.0,
+        updatedAt: new Date().toISOString(),
+      },
+      baseline: { flowRateLps: newSegment.flowRateLps, waterLevelM: 1.0 },
+    };
+    addSensor(sourceSensor);
 
     const sourceSensor = {
       id: uuidv4(),
@@ -319,6 +405,11 @@ export function NetworkMap() {
             </button>
             {mode === 'draw' && channelPoints.length > 0 && (
               <>
+                {branchPoint && (
+                  <div className="px-3 py-1.5 text-xs bg-amber-50 border border-amber-200 rounded text-amber-800 self-center whitespace-nowrap">
+                    🌊 Branching from parent • {Math.round(branchPoint.flowToBranch * 100)}% → new channel
+                  </div>
+                )}
                 <button
                   onClick={finishDrawing}
                   className="px-3 py-1.5 text-sm rounded-md bg-teal-600 text-white hover:bg-teal-700"
@@ -365,6 +456,31 @@ export function NetworkMap() {
                 opacity={segment.isIllustrative ? 0.5 : 0.8}
               />
             ))}
+
+            {/* Branch point indicator on map */}
+            {branchPoint && (
+              <CircleMarker
+                key="branch-point"
+                center={branchPoint.point}
+                radius={12}
+                fillColor="#f59e0b"
+                fillOpacity={0.4}
+                color="#f59e0b"
+                weight={3}
+                dashArray="6, 6"
+              >
+                <Popup>
+                  <div className="p-2 text-center">
+                    <p className="font-semibold text-slate-800">🌊 Branch Point</p>
+                    <p className="text-xs text-slate-500">
+                      Tap into existing channel<br/>
+                      {Math.round(branchPoint.flowToBranch * 100)}% flow → new branch<br/>
+                      {Math.round(branchPoint.flowContinues * 100)}% flow → continues downstream
+                    </p>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            )}
 
             {/* Drawing preview */}
             {mode === 'draw' && channelPoints.length > 0 && (
