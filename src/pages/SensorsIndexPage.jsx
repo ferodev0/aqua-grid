@@ -4,10 +4,19 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { StatusBadge } from '../components/sensors/StatusBadge';
 import { useLanguage } from '../context/LanguageContext';
 import { useNetwork } from '../context/NetworkContext';
+import { KNOWN_VILLAGES } from '../simulation/demoData';
 
 export function SensorsIndexPage() {
   const navigate = useNavigate();
-  const { t, tSensorName, tSensorLocation, tSegmentName } = useLanguage();
+  const {
+    t,
+    tSensorName,
+    tSensorLocation,
+    tSensorVillage,
+    tSensorArea,
+    tVillage,
+    tSegmentName,
+  } = useLanguage();
   const { sensors, channelSegments } = useNetwork();
   const [query, setQuery] = useState('');
 
@@ -19,21 +28,63 @@ export function SensorsIndexPage() {
   const filteredSensors = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sensors;
-    return sensors.filter(
-      (sensor) =>
-        sensor.id.toLowerCase().includes(q) ||
-        sensor.name.toLowerCase().includes(q) ||
-        tSensorName(sensor).toLowerCase().includes(q)
-    );
-  }, [sensors, query, tSensorName]);
+    return sensors.filter((sensor) => {
+      const haystack = [
+        sensor.id,
+        sensor.name,
+        tSensorName(sensor),
+        tSensorLocation(sensor),
+        tSensorVillage(sensor),
+        tSensorArea(sensor),
+        sensor.village,
+        sensor.area,
+        sensor.location?.label,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [
+    sensors,
+    query,
+    tSensorName,
+    tSensorLocation,
+    tSensorVillage,
+    tSensorArea,
+  ]);
+
+  const villageGroups = useMemo(() => {
+    const map = new Map();
+    for (const sensor of filteredSensors) {
+      const village = sensor.village || sensor.location?.village || 'Unknown';
+      if (!map.has(village)) map.set(village, []);
+      map.get(village).push(sensor);
+    }
+
+    const knownOrder = KNOWN_VILLAGES.filter((v) => map.has(v));
+    const extras = [...map.keys()].filter((v) => !KNOWN_VILLAGES.includes(v));
+    return [...knownOrder, ...extras].map((village) => ({
+      village,
+      sensors: map.get(village),
+    }));
+  }, [filteredSensors]);
+
+  const openSensor = (sensorId) => navigate(`/sensors/${sensorId}`);
+
+  const villageLabel = (village) =>
+    village === 'Unknown' ? t('dashboard.unknownVillage') : tVillage(village);
+
+  const stationCountLabel = (count) =>
+    count === 1
+      ? t('sensors.stationCountOne')
+      : t('sensors.stationCount', { count: String(count) });
 
   return (
     <AppLayout title={t('sensors.title')} denseHeader>
-      <p className="mb-4 text-sm text-slate-500">
-        {t('sensors.subtitle')}
-      </p>
+      <p className="mb-4 text-sm text-slate-500">{t('sensors.subtitle')}</p>
 
-      <label className="relative mb-4 block w-full max-w-md">
+      <label className="relative mb-6 block w-full max-w-md">
         <span className="sr-only">{t('sensors.searchAria')}</span>
         <input
           type="search"
@@ -58,79 +109,122 @@ export function SensorsIndexPage() {
         </svg>
       </label>
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-3">{t('sensors.table.id')}</th>
-                <th className="px-4 py-3">{t('sensors.table.station')}</th>
-                <th className="px-4 py-3">{t('sensors.table.location')}</th>
-                <th className="px-4 py-3">{t('sensors.table.channel')}</th>
-                <th className="px-4 py-3 text-right">{t('sensors.table.flow')}</th>
-                <th className="px-4 py-3 text-right">{t('sensors.table.level')}</th>
-                <th className="px-4 py-3">{t('sensors.table.status')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSensors.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-sm text-slate-500"
-                  >
-                    {t('sensors.noMatch', { query: query.trim() })}
-                  </td>
-                </tr>
-              ) : (
-                filteredSensors.map((sensor) => (
-                  <tr
-                    key={sensor.id}
-                    role="link"
-                    tabIndex={0}
-                    onClick={() => navigate(`/sensors/${sensor.id}`)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        navigate(`/sensors/${sensor.id}`);
-                      }
-                    }}
-                    className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-teal-50/40 focus-visible:bg-teal-50/60 focus-visible:outline-none"
-                  >
-                    <td className="px-4 py-3 font-mono text-teal-600">
-                      {sensor.id}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">
-                      {tSensorName(sensor)}
-                    </td>
-                    <td className="max-w-[220px] truncate px-4 py-3 text-slate-500">
-                      {tSensorLocation(sensor)}
-                    </td>
-                    <td className="max-w-[200px] truncate px-4 py-3 text-slate-500">
-                      {segmentName(sensor.channelSegmentId)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-800">
-                      {sensor.current.flowRateLps.toFixed(2)}{' '}
-                      <span className="text-xs font-normal text-slate-400">
-                        L/s
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-800">
-                      {sensor.current.waterLevelM.toFixed(3)}{' '}
-                      <span className="text-xs font-normal text-slate-400">
-                        m
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={sensor.status} />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {villageGroups.length === 0 ? (
+        <section className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500 shadow-sm">
+          {t('sensors.noMatch', { query: query.trim() })}
+        </section>
+      ) : (
+        <div className="space-y-8">
+          {villageGroups.map((group) => (
+            <section key={group.village}>
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold tracking-tight text-slate-800">
+                  {t('sensors.villageGroup', {
+                    village: villageLabel(group.village),
+                  })}
+                </h2>
+                <span className="text-xs font-medium text-slate-500">
+                  {stationCountLabel(group.sensors.length)}
+                </span>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[880px] table-fixed border-collapse text-left text-sm">
+                    <colgroup>
+                      <col className="w-[72px]" />
+                      <col className="w-[160px]" />
+                      <col className="w-[220px]" />
+                      <col className="w-[220px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[108px]" />
+                    </colgroup>
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="px-4 py-3 text-left">
+                          {t('sensors.table.id')}
+                        </th>
+                        <th className="px-4 py-3 text-left">
+                          {t('sensors.table.station')}
+                        </th>
+                        <th className="px-4 py-3 text-left">
+                          {t('sensors.table.area')}
+                        </th>
+                        <th className="px-4 py-3 text-left">
+                          {t('sensors.table.channel')}
+                        </th>
+                        <th className="px-4 py-3 text-center">
+                          {t('sensors.table.flow')}
+                        </th>
+                        <th className="px-4 py-3 text-center">
+                          {t('sensors.table.level')}
+                        </th>
+                        <th className="px-4 py-3 text-center">
+                          {t('sensors.table.status')}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.sensors.map((sensor) => (
+                        <tr
+                          key={sensor.id}
+                          role="link"
+                          tabIndex={0}
+                          onClick={() => openSensor(sensor.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              openSensor(sensor.id);
+                            }
+                          }}
+                          className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-teal-50/40 focus-visible:bg-teal-50/60 focus-visible:outline-none"
+                        >
+                          <td className="truncate px-4 py-3 text-left font-mono text-teal-600">
+                            {sensor.id}
+                          </td>
+                          <td className="truncate px-4 py-3 text-left font-semibold text-slate-800">
+                            {tSensorName(sensor)}
+                          </td>
+                          <td
+                            className="truncate px-4 py-3 text-left text-slate-500"
+                            title={tSensorArea(sensor)}
+                          >
+                            {tSensorArea(sensor)}
+                          </td>
+                          <td
+                            className="truncate px-4 py-3 text-left text-slate-500"
+                            title={segmentName(sensor.channelSegmentId)}
+                          >
+                            {segmentName(sensor.channelSegmentId)}
+                          </td>
+                          <td className="px-4 py-3 text-center font-medium tabular-nums text-slate-800">
+                            {sensor.current.flowRateLps.toFixed(2)}{' '}
+                            <span className="text-xs font-normal text-slate-400">
+                              L/s
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-medium tabular-nums text-slate-800">
+                            {sensor.current.waterLevelM.toFixed(3)}{' '}
+                            <span className="text-xs font-normal text-slate-400">
+                              m
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="inline-flex justify-center">
+                              <StatusBadge status={sensor.status} />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          ))}
         </div>
-      </section>
+      )}
     </AppLayout>
   );
 }
