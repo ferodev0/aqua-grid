@@ -1,20 +1,23 @@
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { StatusBadge } from '../components/sensors/StatusBadge';
+import { useLanguage } from '../context/LanguageContext';
 import { useNetwork } from '../context/NetworkContext';
 
 export function SensorsIndexPage() {
   const navigate = useNavigate();
+  const { t, tSensorName, tSensorLocation, tSegmentName } = useLanguage();
   const { sensors, channelSegments } = useNetwork();
 
-  const segmentName = (segmentId) =>
-    channelSegments.find((s) => s.id === segmentId)?.name ?? segmentId;
+  const segmentName = (segmentId) => {
+    const seg = channelSegments.find((s) => s.id === segmentId);
+    return tSegmentName(segmentId, seg?.name);
+  };
 
   return (
-    <AppLayout title="Sensors">
+    <AppLayout title={t('sensors.title')}>
       <p className="mb-6 text-sm text-slate-500">
-        Live demonstration stations from the shared simulation. Values update
-        automatically; trigger crisis to exercise downstream reductions.
+        {t('sensors.subtitle')}
       </p>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -22,13 +25,13 @@ export function SensorsIndexPage() {
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Station</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Channel</th>
-                <th className="px-4 py-3 text-right">Flow</th>
-                <th className="px-4 py-3 text-right">Level</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">{t('sensors.table.id')}</th>
+                <th className="px-4 py-3">{t('sensors.table.station')}</th>
+                <th className="px-4 py-3">{t('sensors.table.location')}</th>
+                <th className="px-4 py-3">{t('sensors.table.channel')}</th>
+                <th className="px-4 py-3 text-right">{t('sensors.table.flow')}</th>
+                <th className="px-4 py-3 text-right">{t('sensors.table.level')}</th>
+                <th className="px-4 py-3">{t('sensors.table.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -50,10 +53,10 @@ export function SensorsIndexPage() {
                     {sensor.id}
                   </td>
                   <td className="px-4 py-3 font-semibold text-slate-800">
-                    {sensor.name}
+                    {tSensorName(sensor)}
                   </td>
                   <td className="max-w-[220px] truncate px-4 py-3 text-slate-500">
-                    {sensor.location.label}
+                    {tSensorLocation(sensor)}
                   </td>
                   <td className="max-w-[200px] truncate px-4 py-3 text-slate-500">
                     {segmentName(sensor.channelSegmentId)}

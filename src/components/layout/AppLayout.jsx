@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useNetwork } from '../../context/NetworkContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { DemoControls } from '../sensors/DemoControls';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 const NAV_ITEMS = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    labelKey: 'nav.dashboard',
     to: '/',
     match: (pathname) => pathname === '/',
     icon: (
@@ -20,7 +21,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'map',
-    label: 'Network Map',
+    labelKey: 'nav.map',
     to: '/map',
     match: (pathname) => pathname.startsWith('/map'),
     icon: (
@@ -34,7 +35,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'sensors',
-    label: 'Sensors',
+    labelKey: 'nav.sensors',
     to: '/sensors',
     match: (pathname) => pathname.startsWith('/sensors'),
     icon: (
@@ -48,7 +49,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'impact',
-    label: 'Impact / About',
+    labelKey: 'nav.impact',
     to: '/impact',
     match: (pathname) => pathname.startsWith('/impact'),
     icon: (
@@ -68,7 +69,7 @@ const NAV_ITEMS = [
 export function AppLayout({ title, children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { pathname } = useLocation();
-  const { demoBannerText } = useNetwork();
+  const { t } = useLanguage();
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-800">
@@ -85,13 +86,15 @@ export function AppLayout({ title, children }) {
                 : 'w-0 text-[0px] opacity-0'
             }`}
           >
-            Aqua Grid
+            {t('app.title')}
           </h1>
           <button
             type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-teal-600 focus:outline-none"
-            title={isSidebarOpen ? 'Menüyü Daralt' : 'Menüyü Genişlet'}
+            title={
+              isSidebarOpen ? t('nav.collapseSidebar') : t('nav.expandSidebar')
+            }
           >
             <svg
               className="h-6 w-6"
@@ -121,11 +124,12 @@ export function AppLayout({ title, children }) {
         <nav className="flex flex-1 flex-col gap-2 overflow-x-hidden px-3">
           {NAV_ITEMS.map((item) => {
             const active = item.match(pathname);
+            const label = t(item.labelKey);
             return (
               <NavLink
                 key={item.id}
                 to={item.to}
-                title={item.label}
+                title={label}
                 className={`flex items-center gap-4 whitespace-nowrap rounded-lg border px-3 py-3 text-left transition-all ${
                   active
                     ? isSidebarOpen
@@ -149,7 +153,7 @@ export function AppLayout({ title, children }) {
                     isSidebarOpen ? 'opacity-100' : 'hidden opacity-0'
                   }`}
                 >
-                  {item.label}
+                  {label}
                 </span>
               </NavLink>
             );
@@ -162,8 +166,11 @@ export function AppLayout({ title, children }) {
       <main className="flex flex-1 flex-col overflow-y-auto p-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold text-slate-800">{title}</h2>
-          <div className="rounded border border-amber-300 bg-amber-100 px-4 py-1.5 text-sm font-bold tracking-wide text-amber-700 shadow-sm">
-            {demoBannerText}
+          <div className="flex flex-wrap items-center gap-3">
+            <LanguageSwitcher />
+            <div className="rounded border border-amber-300 bg-amber-100 px-4 py-1.5 text-sm font-bold tracking-wide text-amber-700 shadow-sm">
+              {t('app.demoBanner')}
+            </div>
           </div>
         </header>
         {children}

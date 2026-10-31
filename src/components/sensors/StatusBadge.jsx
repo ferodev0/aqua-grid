@@ -1,3 +1,5 @@
+import { useLanguage } from '../../context/LanguageContext';
+
 const STATUS_STYLES = {
   normal: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   warning: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -6,6 +8,7 @@ const STATUS_STYLES = {
 };
 
 export function StatusBadge({ status = 'normal' }) {
+  const { t } = useLanguage();
   const style = STATUS_STYLES[status] ?? STATUS_STYLES.offline;
 
   return (
@@ -13,7 +16,7 @@ export function StatusBadge({ status = 'normal' }) {
       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${style}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
-      {status}
+      {t(`status.${status}`)}
     </span>
   );
 }

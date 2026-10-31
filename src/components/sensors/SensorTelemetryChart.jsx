@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useLanguage } from '../../context/LanguageContext';
 
 const TIME_RANGES = [
   { id: '1h', label: '1H' },
@@ -22,6 +23,7 @@ function formatTick(iso) {
 }
 
 export function SensorTelemetryChart({ points, range, onRangeChange }) {
+  const { t } = useLanguage();
   const data = (points ?? []).map((p) => ({
     ...p,
     label: formatTick(p.timestamp),
@@ -32,10 +34,10 @@ export function SensorTelemetryChart({ points, range, onRangeChange }) {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">
-            Telemetry over time
+            {t('chart.telemetryOverTime')}
           </h3>
           <p className="text-xs text-slate-400">
-            Shared simulation history
+            {t('chart.sharedHistory')}
           </p>
         </div>
         <div className="inline-flex overflow-hidden rounded border border-slate-200 bg-slate-100 text-xs text-slate-600">
@@ -58,7 +60,7 @@ export function SensorTelemetryChart({ points, range, onRangeChange }) {
 
       {data.length === 0 ? (
         <div className="flex min-h-[260px] flex-1 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400">
-          Waiting for telemetry points…
+          {t('chart.waitingTelemetry')}
         </div>
       ) : (
         <div className="min-h-[280px] w-full flex-1">
@@ -107,7 +109,7 @@ export function SensorTelemetryChart({ points, range, onRangeChange }) {
                 yAxisId="flow"
                 type="monotone"
                 dataKey="flowRateLps"
-                name="Flow (L/s)"
+                name={t('chart.flowSeries')}
                 stroke="#0d9488"
                 strokeWidth={2}
                 dot={false}
@@ -117,7 +119,7 @@ export function SensorTelemetryChart({ points, range, onRangeChange }) {
                 yAxisId="level"
                 type="monotone"
                 dataKey="waterLevelM"
-                name="Level (m)"
+                name={t('chart.levelSeries')}
                 stroke="#2563eb"
                 strokeWidth={2}
                 dot={false}
