@@ -49,8 +49,7 @@ const DefaultIcon = new Icon({
   shadowSize: [41, 41],
 });
 
-
-// Map interaction controller - uses useMap hook for reliable map access
+// Map interaction controller - disables dragging/zoom in draw/place mode
 function MapInteractionController({ mode }) {
   const map = useMap();
 
@@ -87,7 +86,6 @@ export function NetworkMap() {
   const { sensors, channelSegments, demoBannerText, addSensor, addChannelSegment } = useNetwork();
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedSensor, setSelectedSensor] = useState(null);
-  
   const panelRef = useRef(null);
 
   const [mode, setMode] = useState('view');
@@ -105,8 +103,6 @@ export function NetworkMap() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-
-
   const handleMapClick = useCallback((e) => {
     const { lat, lng } = e.latlng;
 
@@ -122,20 +118,16 @@ export function NetworkMap() {
         for (let i = 0; i < path.length - 1; i++) {
           const p1 = path[i];
           const p2 = path[i + 1];
-          
           const x = lng - p1[1];
           const y = lat - p1[0];
           const dx = p2[1] - p1[1];
           const dy = p2[0] - p1[0];
           const lenSq = dx * dx + dy * dy;
-          
           let t = (x * dx + y * dy) / lenSq;
           t = Math.max(0, Math.min(1, t));
-          
           const projLat = p1[0] + t * dy;
           const projLng = p1[1] + t * dx;
           const dist = Math.sqrt((lat - projLat) ** 2 + (lng - projLng) ** 2);
-          
           if (dist < minDist) {
             minDist = dist;
             closestPoint = [projLat, projLng];
@@ -166,54 +158,57 @@ export function NetworkMap() {
     }
   }, [mode, channelSegments, sensors.length, addSensor]);
 
-  const handleMapDoubleClick = useCallback(() => {
-    if (mode === 'draw' && channelPoints.length >= 2) {
-      const newSegment = {
-        id: uuidv4(),
-        name: `Channel ${channelSegments.length + 1}`,
-        path: channelPoints.map(([lat, lng]) => ({ lat, lng })),
-        isIllustrative: true,
-      };
-      addChannelSegment(newSegment);
-      
-      const sourceSensor = {
-        id: uuidv4(),
-        name: `Source Sensor ${sensors.length + 1}`,
-        channelSegmentId: newSegment.id,
-        location: { lat: channelPoints[0][0], lng: channelPoints[0][1], label: 'Channel source' },
-        status: 'normal',
-        current: {
-          flowRateLps: 5.0,
-          waterLevelM: 1.0,
-          updatedAt: new Date().toISOString(),
-        },
-        baseline: { flowRateLps: 5.0, waterLevelM: 1.0 },
-      };
-      addSensor(sourceSensor);
-      
-      const mouthSensor = {
-        id: uuidv4(),
-        name: `Mouth Sensor ${sensors.length + 2}`,
-        channelSegmentId: newSegment.id,
-        location: { 
-          lat: channelPoints[channelPoints.length - 1][0], 
-          lng: channelPoints[channelPoints.length - 1][1], 
-          label: 'Channel mouth' 
-        },
-        status: 'normal',
-        current: {
-          flowRateLps: 3.0,
-          waterLevelM: 0.3,
-          updatedAt: new Date().toISOString(),
-        },
-        baseline: { flowRateLps: 3.0, waterLevelM: 0.3 },
-      };
-      addSensor(mouthSensor);
-      
+  const finishDrawing = useCallback(() => {
+    if (channelPoints.length < 2) {
       setChannelPoints([]);
       setMode('view');
+      return;
     }
-  }, [mode, channelPoints, channelSegments.length, sensors.length, addChannelSegment, addSensor]);
+
+    const newSegment = {
+      id: uuidv4(),
+      name: `Channel ${channelSegments.length + 1}`,
+      path: channelPoints.map(([lat, lng]) => ({ lat, lng })),
+    };
+    addChannelSegment(newSegment);
+
+    const sourceSensor = {
+      id: uuidv4(),
+      name: `Source Sensor ${sensors.length + 1}`,
+      channelSegmentId: newSegment.id,
+      location: { lat: channelPoints[0][0], lng: channelPoints[0][1], label: 'Channel source' },
+      status: 'normal',
+      current: {
+        flowRateLps: 5.0,
+        waterLevelM: 1.0,
+        updatedAt: new Date().toISOString(),
+      },
+      baseline: { flowRateLps: 5.0, waterLevelM: 1.0 },
+    };
+    addSensor(sourceSensor);
+
+    const mouthSensor = {
+      id: uuidv4(),
+      name: `Mouth Sensor ${sensors.length + 2}`,
+      channelSegmentId: newSegment.id,
+      location: {
+        lat: channelPoints[channelPoints.length - 1][0],
+        lng: channelPoints[channelPoints.length - 1][1],
+        label: 'Channel mouth',
+      },
+      status: 'normal',
+      current: {
+        flowRateLps: 3.0,
+        waterLevelM: 0.3,
+        updatedAt: new Date().toISOString(),
+      },
+      baseline: { flowRateLps: 3.0, waterLevelM: 0.3 },
+    };
+    addSensor(mouthSensor);
+
+    setChannelPoints([]);
+    setMode('view');
+  }, [channelPoints, channelSegments.length, sensors.length, addChannelSegment, addSensor]);
 
   const cancelDrawing = useCallback(() => {
     setChannelPoints([]);
@@ -261,7 +256,7 @@ export function NetworkMap() {
     <AppLayout title="Network Map">
       <div className="flex-1 w-full h-full">
         <div className="relative w-full h-full">
-          {/* Toolbar - very high z-index to stay above Leaflet map */}
+          {/* Toolbar */}
           <div className="absolute top-4 right-4 z-[9999] flex gap-2 bg-white rounded-lg shadow-lg p-2 border border-slate-200">
             <button
               onClick={() => setMode(mode === 'draw' ? 'view' : 'draw')}
@@ -270,7 +265,7 @@ export function NetworkMap() {
                   ? 'bg-amber-600 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
-              title={mode === 'draw' ? 'Click to add points, double-click to finish' : 'Draw new channel (source = first point)'}
+              title={mode === 'draw' ? 'Click to add points, then Complete' : 'Draw new channel (source = first point)'}
             >
               {mode === 'draw' ? '✏️ Drawing...' : '✏️ Draw Channel'}
             </button>
@@ -287,17 +282,23 @@ export function NetworkMap() {
               {mode === 'place' ? '📍 Placing...' : '📍 Place Sensor'}
             </button>
             {mode === 'draw' && channelPoints.length > 0 && (
-              <button
-                onClick={cancelDrawing}
-                className="px-3 py-1.5 text-sm rounded-md bg-red-100 text-red-700 hover:bg-red-200"
-              >
-                ❌ Cancel
-              </button>
-            )}
-            {mode === 'draw' && channelPoints.length >= 2 && (
-              <span className="px-3 py-1.5 text-sm text-slate-600 self-center">
-                {channelPoints.length} pts • Dbl-click to finish
-              </span>
+              <>
+                <button
+                  onClick={finishDrawing}
+                  className="px-3 py-1.5 text-sm rounded-md bg-teal-600 text-white hover:bg-teal-700"
+                >
+                  ✅ Complete Channel
+                </button>
+                <button
+                  onClick={cancelDrawing}
+                  className="px-3 py-1.5 text-sm rounded-md bg-red-100 text-red-700 hover:bg-red-200"
+                >
+                  ❌ Cancel
+                </button>
+                <span className="px-3 py-1.5 text-sm text-slate-600 self-center">
+                  {channelPoints.length} pts
+                </span>
+              </>
             )}
           </div>
 
@@ -306,19 +307,16 @@ export function NetworkMap() {
             zoom={9}
             scrollWheelZoom={true}
             style={{ width: '100%', height: '100%', minHeight: '600px', borderRadius: '0.5rem' }}
-            
             onClick={handleMapClick}
-            onDblClick={handleMapDoubleClick}
-            onMouseMove={(e) => mode === 'draw' && setMousePosition(e.latlng)}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            
-            {/* Map interaction controller - disables dragging/zoom in draw/place mode */}
+
+            {/* Map interaction controller */}
             <MapInteractionController mode={mode} />
-            
+
             {/* Existing channel segments */}
             {channelSegments.map((segment) => (
               <Polyline
@@ -329,8 +327,8 @@ export function NetworkMap() {
                 opacity={segment.isIllustrative ? 0.4 : 0.8}
               />
             ))}
-            
-            {/* Drawing preview */}
+
+            {/* Drawing preview - visible while drawing */}
             {mode === 'draw' && channelPoints.length > 0 && (
               <>
                 <Polyline
@@ -341,7 +339,6 @@ export function NetworkMap() {
                   dashArray="8, 4"
                   opacity={0.9}
                 />
-                {/* Markers at each drawing point */}
                 {channelPoints.map((point, idx) => (
                   <CircleMarker
                     key={`draw-point-${idx}`}
@@ -361,53 +358,43 @@ export function NetworkMap() {
                         <p className="text-xs text-slate-500">
                           {point[0].toFixed(6)}, {point[1].toFixed(6)}
                         </p>
-                        <p className="text-xs text-amber-600 mt-1">
-                          {idx === channelPoints.length - 1 ? 'Click to continue, Dbl-click to finish' : 'Added'}
-                        </p>
                       </div>
                     </Popup>
                   </CircleMarker>
                 ))}
+                {mousePosition && (
+                  <CircleMarker
+                    key="ghost-marker"
+                    center={[mousePosition.lat, mousePosition.lng]}
+                    radius={8}
+                    fillColor="#22c55e"
+                    fillOpacity={0.5}
+                    color="#16a34a"
+                    weight={2}
+                    dashArray="4, 4"
+                  >
+                    <Popup>
+                      <div className="p-2 text-center text-xs">
+                        <p className="font-medium text-green-700">Next point</p>
+                        <p>{mousePosition.lat.toFixed(6)}, {mousePosition.lng.toFixed(6)}</p>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                )}
               </>
-                        )}
-
-            {/* Ghost marker - follows mouse while drawing */}
-            {mode === 'draw' && mousePosition && (
-              <CircleMarker
-                key="ghost-marker"
-                center={[mousePosition.lat, mousePosition.lng]}
-                radius={8}
-                fillColor="#22c55e"
-                fillOpacity={0.5}
-                color="#16a34a"
-                weight={2}
-                dashArray="4, 4"
-              >
-                <Popup>
-                  <div className="p-2 text-center text-xs">
-                    <p className="font-medium text-green-700">Next point</p>
-                    <p>{mousePosition.lat.toFixed(6)}, {mousePosition.lng.toFixed(6)}</p>
-                  </div>
-                </Popup>
-              </CircleMarker>
             )}
 
-            {/* Flow direction arrows for illustrative channels */}
+            {/* Flow direction arrows for drawn channels */}
             {channelSegments
               .filter(s => s.isIllustrative && s.path.length >= 2)
               .map((segment) => {
                 const path = segment.path;
-                const start = path[0];
-                const end = path[path.length - 1];
-                // Arrow at 30% along the path
                 const arrowIdx = Math.floor(path.length * 0.3);
                 const arrowStart = path[arrowIdx];
                 const arrowEnd = path[Math.min(arrowIdx + 1, path.length - 1)];
-                
                 const dx = arrowEnd[0] - arrowStart[0];
                 const dy = arrowEnd[1] - arrowStart[1];
                 const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-                
                 return (
                   <div key={segment.id}>
                     <Polyline
@@ -433,15 +420,15 @@ export function NetworkMap() {
                   </div>
                 );
               })}
-            
+
             {/* Sensor markers */}
             {sensors.map((sensor) => {
               let coords;
               if (sensor.channelSegmentId) {
                 const segment = channelSegments.find(s => s.id === sensor.channelSegmentId);
                 if (segment && segment.path.length > 0) {
-                  const [lat, lng] = sensor.location?.lat 
-                    ? [sensor.location.lat, sensor.location.lng] 
+                  const [lat, lng] = sensor.location?.lat
+                    ? [sensor.location.lat, sensor.location.lng]
                     : segment.path[0];
                   coords = [lat, lng];
                 } else {
@@ -450,9 +437,9 @@ export function NetworkMap() {
               } else {
                 coords = sensorCoords[sensor.id];
               }
-              
+
               if (!coords) return null;
-              
+
               const color = sensorColors[sensor.status] || sensorColors.normal;
               return (
                 <CircleMarker
@@ -466,7 +453,6 @@ export function NetworkMap() {
                   onClick={() => {
                     setSelectedSensor(sensor.id);
                     setPanelOpen(true);
-                    
                   }}
                 >
                   <Popup>
@@ -477,7 +463,7 @@ export function NetworkMap() {
                       <div className="mt-2 pt-2 border-t border-slate-100">
                         <div className="flex items-center gap-1 text-xs"><span className="font-medium text-slate-600">Flow:</span><span className="font-mono text-slate-800">{sensor.current.flowRateLps.toFixed(2)} L/s</span></div>
                         <div className="flex items-center gap-1 text-xs"><span className="font-medium text-slate-600">Level:</span><span className="font-mono text-slate-800">{sensor.current.waterLevelM.toFixed(3)} m</span></div>
-                        <button 
+                        <button
                           className="mt-2 w-full text-xs text-teal-600 hover:underline"
                           onClick={() => navigate('/sensors/' + sensor.id)}
                         >
@@ -495,7 +481,7 @@ export function NetworkMap() {
             DEMO MODE — SIMULATED SENSOR DATA
           </div>
         </div>
-        
+
         {renderEditPanel()}
         {selectedSensor && renderSensorPopUp(
           sensors.find((s) => s.id === selectedSensor)
