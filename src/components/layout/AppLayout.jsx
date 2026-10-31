@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { DemoControls } from '../sensors/DemoControls';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 const NAV_ITEMS = [
   {
@@ -182,6 +183,7 @@ export function AppLayout({ title, children, denseHeader = false }) {
         </nav>
 
         <DemoControls collapsed={!isSidebarOpen} />
+        <ThemeSwitcher collapsed={!isSidebarOpen} />
       </aside>
 
       <main className="flex flex-1 flex-col overflow-y-auto p-6">

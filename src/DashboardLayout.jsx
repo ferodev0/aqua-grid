@@ -14,16 +14,16 @@ const COLOR_PALETTE = [
 ];
 
 const STATUS_BADGE_STYLES = {
-  normal: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  warning: 'bg-amber-100 text-amber-800 border-amber-300',
-  critical: 'bg-red-100 text-red-700 border-red-300',
-  offline: 'bg-slate-200 text-slate-600 border-slate-300',
+  normal: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700/60',
+  warning: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700/60',
+  critical: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-950/60 dark:text-red-300 dark:border-red-700/60',
+  offline: 'bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
 };
 
 const ALERT_BADGE_STYLES = {
-  info: 'bg-sky-50 border-sky-200 text-sky-900',
-  warning: 'bg-amber-50 border-amber-300 text-amber-900',
-  critical: 'bg-red-50 border-red-300 text-red-900',
+  info: 'bg-sky-50 border-sky-200 text-sky-900 dark:bg-sky-950/45 dark:border-sky-800/70 dark:text-sky-200',
+  warning: 'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950/45 dark:border-amber-800/70 dark:text-amber-200',
+  critical: 'bg-red-50 border-red-300 text-red-900 dark:bg-red-950/45 dark:border-red-800/70 dark:text-red-200',
 };
 
 function formatTime(isoString, locale) {
@@ -172,7 +172,7 @@ export default function DashboardLayout() {
   // Veriye ve Gruplamaya Dayalı Grafik Hesabı (Village / Sensor)
   const { dynamicMaxFlowY, dynamicTicks, activeSeries } = useMemo(() => {
     let maxVal = 0;
-    let series = [];
+    let series;
 
     if (chartGroupBy === 'sensor') {
       series = visibleSensors.map((sensor) => {
@@ -234,7 +234,7 @@ export default function DashboardLayout() {
     });
 
     return { dynamicMaxFlowY: calculatedMax, dynamicTicks: ticks, activeSeries: mappedSeries };
-  }, [visibleSensors, getSensorTelemetry, selectedRange, chartGroupBy, sensorColors, t, tSensorName, villageLabel]);
+  }, [visibleSensors, getSensorTelemetry, selectedRange, chartGroupBy, sensorColors, t, tSensorName, villageLabel, innerHeight, innerWidth]);
 
   const timeLocale = language;
 
@@ -462,7 +462,7 @@ export default function DashboardLayout() {
           </div>
 
           {/* SVG Time-Series Chart */}
-          <div className="flex-1 flex flex-col justify-between bg-slate-50/70 border border-slate-200 rounded-lg p-3">
+          <div className="flex-1 flex flex-col justify-between bg-slate-50/70 dark:bg-slate-900/75 border border-slate-200 dark:border-slate-700/80 rounded-lg p-3">
             <svg
               viewBox={`0 0 ${chartWidth} ${chartHeight}`}
               className="w-full h-full max-h-[290px] overflow-visible"
@@ -471,8 +471,22 @@ export default function DashboardLayout() {
                 const y = padTop + innerHeight - (tickVal / dynamicMaxFlowY) * innerHeight;
                 return (
                   <g key={tickVal}>
-                    <line x1={padLeft} y1={y} x2={chartWidth - padRight} y2={y} stroke="#e2e8f0" strokeDasharray="3 3" />
-                    <text x={padLeft - 8} y={y + 4} textAnchor="end" className="fill-slate-400 text-[10px]">{tickVal} L/s</text>
+                    <line
+                      x1={padLeft}
+                      y1={y}
+                      x2={chartWidth - padRight}
+                      y2={y}
+                      strokeDasharray="3 3"
+                      className="stroke-slate-200 dark:stroke-slate-700/80"
+                    />
+                    <text
+                      x={padLeft - 8}
+                      y={y + 4}
+                      textAnchor="end"
+                      className="fill-slate-500 dark:fill-slate-400 text-[10px]"
+                    >
+                      {tickVal} L/s
+                    </text>
                   </g>
                 );
               })}
@@ -501,9 +515,8 @@ export default function DashboardLayout() {
                           cy={coord.y}
                           r={hoveredPoint?.pt?.timestamp === coord.pt.timestamp && hoveredPoint?.sensorId === coord.sensorId ? "5" : "2.5"}
                           fill={color}
-                          stroke="#ffffff"
                           strokeWidth="1.5"
-                          className="pointer-events-none transition-all duration-100"
+                          className="stroke-white dark:stroke-slate-900 pointer-events-none transition-all duration-100"
                         />
                       </g>
                     ))}
@@ -513,13 +526,13 @@ export default function DashboardLayout() {
 
               {referenceTicks.length > 1 && (
                 <>
-                  <text x={padLeft} y={chartHeight - 6} textAnchor="start" className="fill-slate-400 text-[10px]">
+                  <text x={padLeft} y={chartHeight - 6} textAnchor="start" className="fill-slate-500 dark:fill-slate-400 text-[10px]">
                     {formatTime(referenceTicks[0]?.timestamp, timeLocale)}
                   </text>
-                  <text x={padLeft + innerWidth / 2} y={chartHeight - 6} textAnchor="middle" className="fill-slate-400 text-[10px]">
+                  <text x={padLeft + innerWidth / 2} y={chartHeight - 6} textAnchor="middle" className="fill-slate-500 dark:fill-slate-400 text-[10px]">
                     {formatTime(referenceTicks[Math.floor(referenceTicks.length / 2)]?.timestamp, timeLocale)}
                   </text>
-                  <text x={chartWidth - padRight} y={chartHeight - 6} textAnchor="end" className="fill-slate-400 text-[10px]">
+                  <text x={chartWidth - padRight} y={chartHeight - 6} textAnchor="end" className="fill-slate-500 dark:fill-slate-400 text-[10px]">
                     {formatTime(referenceTicks[referenceTicks.length - 1]?.timestamp, timeLocale)}
                   </text>
                 </>
@@ -527,14 +540,14 @@ export default function DashboardLayout() {
             </svg>
 
             {/* Dinamik Grafik Lejantı (Village / Sensor geçişine uyumlu) */}
-            <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-slate-200/80 text-xs">
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-slate-200/80 dark:border-slate-700/80 text-xs">
               <TopThreeList
                 items={activeSeries}
                 renderItem={(s) => (
                   <div key={s.id} className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ backgroundColor: s.color }} />
-                    <span className="font-medium text-slate-700 truncate max-w-[150px]" title={s.name}>{s.id} ({s.name}):</span>
-                    <span className="font-bold text-slate-900 shrink-0">
+                    <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[150px]" title={s.name}>{s.id} ({s.name}):</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100 shrink-0">
                       {s.coords[s.coords.length - 1]?.pt.flowRateLps.toFixed(2)} L/s
                     </span>
                   </div>
@@ -569,7 +582,7 @@ export default function DashboardLayout() {
                   {alert.sensorIds?.length > 0 && (
                     <div className="flex gap-1.5 mt-2">
                       {alert.sensorIds.map((id) => (
-                        <span key={id} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/80 border border-current/20">
+                        <span key={id} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/80 dark:bg-slate-900/70 border border-current/20">
                           {t('dashboard.stationTag', { id })}
                         </span>
                       ))}
