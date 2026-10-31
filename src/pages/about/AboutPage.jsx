@@ -106,13 +106,13 @@ export function AboutPage({ title = 'Impact / About' }) {
           <div className="aqua-about-hero-copy">
             <p className="aqua-about-kicker">
               <span className="aqua-about-kicker-mark" aria-hidden="true" />
-              A clearer view of every drop
+              A clear view of every drop
             </p>
-            <h1>Observe the flow, understand the channel.</h1>
+            <h1>Observe the flow, spot the crack.</h1>
             <p className="aqua-about-intro">
               Aqua Grid is a concept for connecting water-channel observations
-              across Lefke—helping people see what is changing, where to look
-              closer, and what to explore next.
+              across Lefke—helping local municipalities & producers to spot the 
+              water loss problems in the aqueducts and water canals.
             </p>
             <div className="aqua-about-hero-tags">
               <span>Water monitoring</span>
@@ -155,7 +155,7 @@ export function AboutPage({ title = 'Impact / About' }) {
           <div className="aqua-about-section-heading">
             <div>
               <p className="aqua-about-eyebrow">A connected story</p>
-              <h2>Small observations. A clearer way forward.</h2>
+              <h2>Deep attention, plain route.</h2>
             </div>
             <p>
               Follow the channel from the challenge to the questions this

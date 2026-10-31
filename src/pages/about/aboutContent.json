@@ -3,66 +3,66 @@
     {
       "number": "01",
       "eyebrow": "Why Aqua Grid",
-      "title": "One reading can’t tell the whole story.",
-      "body": "Water moves through a network of channels, but a reading from one place only shows what is happening there. Aqua Grid is a project exploring how observations from more points could help people understand the bigger picture in Lefke.",
-      "note": "A change in flow is a reason to take a closer look—not proof of what caused it.",
+      "title": "When water is lost, people and the environment feel the impact.",
+      "body": "Local producers who rely on Lefke’s historic aqueducts can be left with less water than they need. When losses along the channels go unnoticed, it becomes harder to respond in time and protect the historic fabric and surrounding environment.",
+      "note": "Aqua Grid aims to make possible water loss easier to spot so it can be investigated sooner.",
       "side": "left"
     },
     {
       "number": "02",
-      "eyebrow": "What we’re working toward",
-      "title": "Bring separate readings into one shared view.",
-      "body": "The idea is simple: place monitoring stations at useful points, bring their readings together, and make it easier to compare what is happening along the channel. If something looks unusual, people have a clearer place to start asking questions.",
-      "note": "The dashboard is a prototype. Its sensor readings are simulated, not measured in the field.",
+      "eyebrow": "Our approach",
+      "title": "Monitor water loss while respecting the aqueducts.",
+      "body": "We want to explore discreet data-collection devices that could help identify possible water loss without harming the aqueducts’ historic fabric or disrupting their surroundings.",
+      "note": "Device design and placement would need environmental review before installation.",
       "side": "right"
     },
     {
       "number": "03",
-      "eyebrow": "How it fits together",
-      "title": "Useful tools, with people in the loop.",
-      "body": "Sensors could keep watch at selected points, while a shared dashboard helps operators and decision-makers compare readings over time. The aim isn’t to replace local knowledge; it’s to give people another useful way to spot where attention may be needed.",
-      "note": "The right sensors and locations still need to be chosen through field surveys and consultation.",
+      "eyebrow": "What it could support",
+      "title": "Better questions for better decisions.",
+      "body": "Earlier visibility may help teams prioritise field inspections, make more informed water-management decisions, and build evidence for future infrastructure planning.",
+      "note": "At suitable sites, measured data could also inform a micro-hydropower feasibility study—not prove one.",
       "side": "left"
     },
     {
       "number": "04",
-      "eyebrow": "Why better visibility matters",
-      "title": "Spend less time guessing where to look.",
-      "body": "With readings from more than one place, teams could notice unusual changes sooner, prioritise field checks, and build a more useful picture for future water-management decisions.",
-      "note": "These are hoped-for benefits. They need to be tested with real data and the people who would use it.",
+      "eyebrow": "A careful next step",
+      "title": "Measure first. Expand with evidence.",
+      "body": "A real deployment would begin with people and place: consult stakeholders, survey the channel, and select a small number of appropriate pilot sites.",
+      "note": "Sensor placement, permissions, maintenance, and operating needs all require local evaluation.",
       "side": "right"
     },
     {
       "number": "05",
-      "eyebrow": "An idea to investigate",
-      "title": "Could the flow support a little clean energy?",
-      "body": "At some sites, moving water might offer a small renewable-energy opportunity. Aqua Grid treats that as a question for future study: first understand the flow and the site, then see whether further assessment makes sense.",
-      "note": "No hydropower site has been proven feasible. Measurements and technical, environmental, and operational checks would come first.",
+      "eyebrow": "The bigger picture",
+      "title": "Infrastructure that helps communities adapt.",
+      "body": "Aqua Grid is intended to explore how practical monitoring can support responsible water use, resilient local services, and carefully assessed clean-energy opportunities.",
+      "note": "These are areas of intended contribution, not achieved or certified outcomes.",
       "side": "left"
     },
     {
       "number": "06",
-      "eyebrow": "What comes next",
-      "title": "Start small, listen, and learn.",
-      "body": "A real pilot would begin by talking with local stakeholders and surveying the channel. From there, a small number of suitable sites could be selected, sensors calibrated, and real readings collected before deciding what—if anything—to expand.",
-      "note": "Permissions, maintenance, and long-term ownership would need to be part of that conversation.",
+      "eyebrow": "The bigger picture",
+      "title": "Infrastructure that helps communities adapt.",
+      "body": "Aqua Grid is intended to explore how practical monitoring can support responsible water use, resilient local services, and carefully assessed clean-energy opportunities.",
+      "note": "These are areas of intended contribution, not achieved or certified outcomes.",
       "side": "right"
     }
   ],
   "goals": [
-    ["06", "Clean water", "Help people build a clearer picture of local water conditions."],
-    ["07", "Clean energy", "Explore small-scale renewable energy only where a site is suitable."],
-    ["09", "Industry and infrastructure", "See how connected monitoring might inform infrastructure planning."],
-    ["11", "Sustainable communities", "Support conversations about more resilient local services."],
-    ["12", "Responsible resource use", "Make it easier to ask how water and infrastructure are being used."],
-    ["13", "Climate action", "Explore ideas that could support local resilience over time."]
+    ["06", "Clean water", "Support better observation and management of water resources."],
+    ["07", "Clean energy", "Explore renewable energy recovery where appropriate."],
+    ["09", "Resilient infrastructure", "Use digital monitoring to inform infrastructure decisions."],
+    ["11", "Sustainable communities", "Support resilient local services and planning."],
+    ["12", "Responsible resource use", "Encourage more informed use of water and infrastructure."],
+    ["13", "Climate action", "Explore local resilience and renewable-energy opportunities."]
   ],
   "roadmap": [
-    "Talk with local stakeholders and survey the channel",
-    "Choose a few suitable locations for a pilot",
-    "Install and calibrate sensors, then collect real readings",
-    "Check whether the readings are useful in day-to-day decisions",
-    "Study energy potential at suitable sites",
-    "Decide together whether expansion is worthwhile"
+    "Survey the channel and consult local stakeholders",
+    "Select suitable sites for a small sensor pilot",
+    "Install, calibrate, and collect real-world data",
+    "Evaluate anomalies and operational usefulness",
+    "Assess hydropower feasibility at selected sites",
+    "Consider expansion with evidence and approval"
   ]
 }
