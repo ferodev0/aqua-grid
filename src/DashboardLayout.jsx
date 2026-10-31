@@ -36,18 +36,17 @@ function formatTime(isoString) {
   });
 }
 
-// Yardımcı bileşen: İlk 10 öğeyi gösterip geri kalanını "+ X Other" olarak gruplayan liste
-function TopTenList({ items, renderItem, emptyMessage = 'No data' }) {
+function TopThreeList({ items, renderItem, emptyMessage = 'No data' }) {
   if (!items || items.length === 0) {
     return <div className="text-sm text-slate-500 italic">{emptyMessage}</div>;
   }
 
-  const topTen = items.slice(0, 10);
-  const remainingCount = items.length - 10;
+  const topThree = items.slice(0, 3);
+  const remainingCount = items.length - 3;
 
   return (
     <div className="flex flex-col gap-1.5">
-      {topTen.map((item, index) => renderItem(item, index))}
+      {topThree.map((item, index) => renderItem(item, index))}
       
       {remainingCount > 0 && (
         <div className="text-center pt-2 mt-1 border-t border-slate-100">
@@ -60,12 +59,12 @@ function TopTenList({ items, renderItem, emptyMessage = 'No data' }) {
   );
 }
 
-
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedRange, setSelectedRange] = useState('1h');
   const [selectedSensorId, setSelectedSensorId] = useState('ALL');
   
+  const [chartGroupBy, setChartGroupBy] = useState('sensor'); 
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
   const {
@@ -79,7 +78,6 @@ export default function DashboardLayout() {
     getSensorTelemetry,
   } = useNetwork();
 
-  // Sensör ID'lerine göre dinamik renk eşleştirmesi
   const sensorColors = useMemo(() => {
     const colorMap = {};
     sensors.forEach((s, index) => {
@@ -93,26 +91,69 @@ export default function DashboardLayout() {
       ? sensors
       : sensors.filter((s) => s.id === selectedSensorId);
 
-  const hydropowerData = useMemo(() => {
-    return sensors.map(sensor => {
-      const flowLps = Number(sensor.current?.flowRateLps) || 0;
-      const RHO = 1000;
-      const G = 9.81;
-      const Q_m3s = flowLps / 1000;
-      
-      // Sensör objesinde tanımlıysa onu kullan, yoksa varsayılana düş
-      const HEAD = sensor.headHeight || 2.8; 
-      const EFFICIENCY = sensor.turbineEfficiency || 0.65;
-      
-      const calculatedWatts = RHO * G * Q_m3s * HEAD * EFFICIENCY;
+  // --- KÖYE GÖRE GRUPLAMALAR ---
+  const { villagesData, villagePowerData, villageActiveData, villageMaxFlowData } = useMemo(() => {
+    const vData = {};
+    const activeByVillage = {};
+    const maxFlowByVillage = {};
 
+    sensors.forEach(sensor => {
+      const village = sensor.village || 'Unknown Village';
+      
+      // 1. Sensörleri Köylere Ayır (Açılır menü için)
+      if (!vData[village]) vData[village] = [];
+      vData[village].push(sensor);
+
+      // 2. Aktif Sensör Sayımı (Köye Göre)
+      if (!activeByVillage[village]) activeByVillage[village] = { total: 0, active: 0 };
+      activeByVillage[village].total += 1;
+      if (sensor.status === 'normal') activeByVillage[village].active += 1;
+
+      // 3. Maksimum Akış Hızı (Köye Göre Referans Belirleme)
+      const flowLps = Number(sensor.current?.flowRateLps) || 0;
+      if (!maxFlowByVillage[village] || flowLps > maxFlowByVillage[village].flowRateLps) {
+        maxFlowByVillage[village] = {
+          sensorId: sensor.id,
+          flowRateLps: flowLps,
+          headHeight: sensor.headHeight || 2.8,
+          turbineEfficiency: sensor.turbineEfficiency || 0.65
+        };
+      }
+    });
+
+    // Formata Çevirme ve Güç (Power) Hesabı (Köye Göre EN YÜKSEK Referans Akışına Göre)
+    const pData = Object.keys(maxFlowByVillage).map(village => {
+      const maxData = maxFlowByVillage[village];
+      const calculatedWatts = 1000 * 9.81 * (maxData.flowRateLps / 1000) * maxData.headHeight * maxData.turbineEfficiency;
       return {
-        id: sensor.id,
-        name: sensor.name,
+        id: village, 
+        name: village, 
+        sensorId: maxData.sensorId, // Hover'da göstermek için sensör ID'si eklendi
         powerWatts: calculatedWatts
       };
     }).sort((a, b) => b.powerWatts - a.powerWatts);
+
+    const aData = Object.keys(activeByVillage).map(village => ({
+      id: village, name: village, ...activeByVillage[village]
+    })).sort((a, b) => b.active - a.active);
+
+    const mFlowData = Object.keys(maxFlowByVillage).map(village => ({
+      id: village, name: village, ...maxFlowByVillage[village]
+    })).sort((a, b) => b.flowRateLps - a.flowRateLps);
+
+    return { 
+      villagesData: vData, 
+      villagePowerData: pData, 
+      villageActiveData: aData, 
+      villageMaxFlowData: mFlowData 
+    };
   }, [sensors]);
+
+  // Yeni maksimum güç değeri (Toplamı değil, en yüksek potansiyele sahip bölgeyi alır)
+  const maxEstimatedPower = useMemo(() => {
+    if (villagePowerData.length === 0) return 0;
+    return villagePowerData[0].powerWatts; // Sıralı olduğu için [0] en büyüktür
+  }, [villagePowerData]);
 
   const chartWidth = 680;
   const chartHeight = 250;
@@ -123,57 +164,79 @@ export default function DashboardLayout() {
   const innerWidth = chartWidth - padLeft - padRight;
   const innerHeight = chartHeight - padTop - padBottom;
 
-  // Veriye dayalı dinamik Y ekseni (maxFlowY) ve tick (çizgi) hesabı
-  const { dynamicMaxFlowY, dynamicTicks } = useMemo(() => {
+  // Veriye ve Gruplamaya Dayalı Grafik Hesabı (Village / Sensor)
+  const { dynamicMaxFlowY, dynamicTicks, activeSeries } = useMemo(() => {
     let maxVal = 0;
-    visibleSensors.forEach((sensor) => {
-      const points = getSensorTelemetry(sensor.id, selectedRange);
-      points.forEach((pt) => {
-        if (pt.flowRateLps > maxVal) maxVal = pt.flowRateLps;
+    let series = [];
+
+    if (chartGroupBy === 'sensor') {
+      series = visibleSensors.map((sensor) => {
+        const points = getSensorTelemetry(sensor.id, selectedRange);
+        points.forEach((pt) => { if (pt.flowRateLps > maxVal) maxVal = pt.flowRateLps; });
+        return {
+          id: sensor.id,
+          name: sensor.name,
+          color: sensorColors[sensor.id] || '#0f766e',
+          points
+        };
       });
-    });
-    
-    // En yüksek değerin %20 üstünü alarak tavan belirle (minimum 10)
+    } else {
+      // Köy (Village) bazlı MAKSİMUM referans grafik gösterimi
+      const villages = [...new Set(visibleSensors.map(s => s.village || 'Unknown'))];
+      series = villages.map((villageName, index) => {
+        const villageSensors = visibleSensors.filter(s => s.village === villageName || (!s.village && villageName === 'Unknown'));
+        const refPoints = getSensorTelemetry(villageSensors[0].id, selectedRange);
+        
+        const points = refPoints.map((refPt, idx) => {
+          let maxFlow = 0;
+          villageSensors.forEach(s => {
+             const pts = getSensorTelemetry(s.id, selectedRange);
+             const currentFlow = pts[idx]?.flowRateLps || 0;
+             if (currentFlow > maxFlow) {
+               maxFlow = currentFlow;
+             }
+          });
+          if (maxFlow > maxVal) maxVal = maxFlow;
+          return { ...refPt, flowRateLps: maxFlow };
+        });
+
+        return {
+          id: villageName,
+          name: `${villageName} (Max Ref)`,
+          color: COLOR_PALETTE[index % COLOR_PALETTE.length],
+          points
+        };
+      });
+    }
+
     const calculatedMax = Math.max(Math.ceil(maxVal * 1.2), 10); 
-    
-    // 5 eşit parçaya bölerek eksen çizgisi (tick) dizisi oluştur
     const tickCount = 5;
     const step = calculatedMax / tickCount;
     const ticks = Array.from({ length: tickCount + 1 }, (_, i) => parseFloat((i * step).toFixed(1)));
 
-    return { dynamicMaxFlowY: calculatedMax, dynamicTicks: ticks };
-  }, [visibleSensors, getSensorTelemetry, selectedRange]);
-
-  const sensorSeries = visibleSensors.map((sensor) => {
-    const points = getSensorTelemetry(sensor.id, selectedRange);
-    const coords = points.map((pt, idx) => {
-      const x =
-        padLeft +
-        (points.length <= 1
-          ? innerWidth / 2
-          : (idx / (points.length - 1)) * innerWidth);
-      const clampedFlow = Math.min(Math.max(pt.flowRateLps, 0), dynamicMaxFlowY);
-      const y = padTop + innerHeight - (clampedFlow / dynamicMaxFlowY) * innerHeight;
-      return { x, y, pt, sensorId: sensor.id, sensorName: sensor.name };
+    const mappedSeries = series.map(s => {
+      const coords = s.points.map((pt, idx) => {
+        const x = padLeft + (s.points.length <= 1 ? innerWidth / 2 : (idx / (s.points.length - 1)) * innerWidth);
+        const clampedFlow = Math.min(Math.max(pt.flowRateLps, 0), calculatedMax);
+        const y = padTop + innerHeight - (clampedFlow / calculatedMax) * innerHeight;
+        return { x, y, pt, sensorId: s.id, sensorName: s.name };
+      });
+      return {
+        ...s,
+        coords,
+        polyline: coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ')
+      };
     });
 
-    return {
-      sensor,
-      coords,
-      polyline: coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' '),
-      color: sensorColors[sensor.id] || '#0f766e',
-    };
-  });
+    return { dynamicMaxFlowY: calculatedMax, dynamicTicks: ticks, activeSeries: mappedSeries };
+  }, [visibleSensors, getSensorTelemetry, selectedRange, chartGroupBy, sensorColors]);
 
-  const referenceTicks = getSensorTelemetry(
-    sensors[0]?.id || 'S01',
-    selectedRange
-  );
+  const referenceTicks = activeSeries[0]?.points || [];
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden">
       
-      {/* Dinamik Genişlikli Left Navigation Panel */}
+      {/* Left Navigation Panel */}
       <aside
         className={`bg-white flex flex-col border-r border-slate-200 shadow-sm transition-all duration-300 ease-in-out z-20 ${
           isSidebarOpen ? 'w-64' : 'w-20'
@@ -278,8 +341,8 @@ export default function DashboardLayout() {
             className="fixed z-50 bg-slate-900 text-white text-xs px-3 py-2 rounded shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px]"
             style={{ left: hoveredPoint.clientX, top: hoveredPoint.clientY }}
           >
-            <div className="font-bold mb-1" style={{ color: sensorColors[hoveredPoint.sensorId] }}>
-              {hoveredPoint.sensorId} - {hoveredPoint.sensorName}
+            <div className="font-bold mb-1" style={{ color: hoveredPoint.color || '#10b981' }}>
+              {hoveredPoint.sensorId} {hoveredPoint.sensorName && `- ${hoveredPoint.sensorName}`}
             </div>
             <div>Zaman: {formatTime(hoveredPoint.pt.timestamp)}</div>
             <div>Akış: {hoveredPoint.pt.flowRateLps.toFixed(2)} L/s</div>
@@ -321,36 +384,39 @@ export default function DashboardLayout() {
 
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           
-          {/* Estimated Power Potential Card + Hover Dropdown */}
+          {/* Max Power Potential Card (Toplama değil, En Yüksek Referans) */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group cursor-help transition-all hover:border-teal-300 hover:shadow-md">
             <h3 className="text-slate-500 text-sm font-medium mb-1">
-              Estimated Power Potential
+              Max Power Potential
             </h3>
             <div className="text-3xl font-bold text-slate-800">
-              {summaryMetrics.illustrativePowerPotentialWatts.toFixed(0)} W
+              {maxEstimatedPower.toFixed(0)} W
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Illustrative estimate (2.8 m head, 65% eff.)
+              Highest region reference (2.8m, 65% eff.)
             </p>
 
-            <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
-              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Potential by Station</div>
-              <TopTenList 
-                items={hydropowerData} 
-                renderItem={(data) => (
+            <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
+              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Max Potential by Village</div>
+              <TopThreeList 
+                items={villagePowerData} 
+                renderItem={(data, idx) => (
                   <div key={data.id} className="flex justify-between items-center text-sm">
-                    <span className="text-slate-600 font-medium">
-                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: sensorColors[data.id] }}></span>
-                      {data.id}
+                    <span className="text-slate-600 font-medium truncate pr-2 max-w-[120px]" title={data.name}>
+                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLOR_PALETTE[idx % COLOR_PALETTE.length] }}></span>
+                      {data.name}
                     </span>
-                    <span className="font-bold text-teal-700">{data.powerWatts.toFixed(0)} W</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-slate-400">({data.sensorId})</span>
+                      <span className="font-bold text-teal-700">{data.powerWatts.toFixed(0)} W</span>
+                    </div>
                   </div>
                 )}
               />
             </div>
           </div>
 
-          {/* Active Sensors Card + Hover Dropdown */}
+          {/* Active Sensors Card */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group cursor-help transition-all hover:border-teal-300 hover:shadow-md">
             <h3 className="text-slate-500 text-sm font-medium mb-1">
               Active Sensors
@@ -369,17 +435,17 @@ export default function DashboardLayout() {
             </p>
 
             <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
-              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Station Statuses</div>
-              <TopTenList 
-                items={sensors} 
-                renderItem={(sensor) => (
-                  <div key={sensor.id} className="flex justify-between items-center text-sm">
+              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Status by Village</div>
+              <TopThreeList 
+                items={villageActiveData} 
+                renderItem={(data, idx) => (
+                  <div key={data.id} className="flex justify-between items-center text-sm">
                     <span className="text-slate-600 font-medium">
-                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: sensorColors[sensor.id] }}></span>
-                      {sensor.id}
+                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLOR_PALETTE[idx % COLOR_PALETTE.length] }}></span>
+                      {data.name}
                     </span>
-                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${STATUS_BADGE_STYLES[sensor.status]}`}>
-                      {sensor.status === 'normal' ? 'Active' : sensor.status}
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${data.active === data.total ? STATUS_BADGE_STYLES['normal'] : STATUS_BADGE_STYLES['warning']}`}>
+                      {data.active} / {data.total}
                     </span>
                   </div>
                 )}
@@ -387,7 +453,7 @@ export default function DashboardLayout() {
             </div>
           </div>
 
-          {/* Reference Flow Card + Hover Dropdown */}
+          {/* Reference Flow Card */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group cursor-help transition-all hover:border-teal-300 hover:shadow-md">
             <h3 className="text-slate-500 text-sm font-medium mb-1">
               Reference Flow ({summaryMetrics.referenceSensorId})
@@ -407,18 +473,21 @@ export default function DashboardLayout() {
             </p>
 
             <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
-              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Current Flow Rates (L/s)</div>
-              <TopTenList 
-                items={sensors} 
-                renderItem={(sensor) => (
-                  <div key={sensor.id} className="flex justify-between items-center text-sm">
-                    <span className="text-slate-600 font-medium truncate pr-2 max-w-[120px]" title={sensor.name}>
-                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: sensorColors[sensor.id] }}></span>
-                      {sensor.id} ({sensor.name})
+              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Max Flow by Village (L/s)</div>
+              <TopThreeList 
+                items={villageMaxFlowData} 
+                renderItem={(data, idx) => (
+                  <div key={data.id} className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 font-medium truncate pr-2 max-w-[120px]" title={data.name}>
+                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLOR_PALETTE[idx % COLOR_PALETTE.length] }}></span>
+                      {data.name}
                     </span>
-                    <span className="font-bold text-slate-800 shrink-0">
-                      {Number(sensor.current?.flowRateLps || 0).toFixed(2)}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-slate-400">({data.sensorId})</span>
+                      <span className="font-bold text-slate-800">
+                        {data.flowRateLps.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 )}
               />
@@ -457,23 +526,43 @@ export default function DashboardLayout() {
                   Simulated Water Flow Rate (L/s)
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Live telemetry stream (Grafik üzerinde noktalara mouse ile gel)
+                  Live telemetry stream
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
+                
+                {/* Gruplama (Sensor vs Village) Seçenekleri */}
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 text-xs mr-2">
+                  <button 
+                    onClick={() => setChartGroupBy('sensor')} 
+                    className={`px-2.5 py-1 rounded font-semibold transition-colors ${chartGroupBy === 'sensor' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Sensors
+                  </button>
+                  <button 
+                    onClick={() => setChartGroupBy('village')} 
+                    className={`px-2.5 py-1 rounded font-semibold transition-colors ${chartGroupBy === 'village' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Villages (Max Ref)
+                  </button>
+                </div>
+
+                {/* Köy gruplu (optgroup) Select Dropdown */}
                 <select
                   value={selectedSensorId}
                   onChange={(e) => setSelectedSensorId(e.target.value)}
                   className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-slate-700 font-medium"
                 >
-                  <option value="ALL">
-                    All Stations {sensors.length > 0 ? `(${sensors[0].id}–${sensors[sensors.length - 1].id})` : ''}
-                  </option>
-                  {sensors.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.id} — {s.name}
-                    </option>
+                  <option value="ALL">All {sensors.length} Stations</option>
+                  {Object.entries(villagesData).map(([village, vSensors]) => (
+                    <optgroup key={village} label={`Village: ${village}`}>
+                      {vSensors.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.id} — {s.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
 
@@ -502,7 +591,6 @@ export default function DashboardLayout() {
                 viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                 className="w-full h-full max-h-[290px] overflow-visible"
               >
-                {/* Dinamik eksen çizgileri (ticks) */}
                 {dynamicTicks.map((tickVal) => {
                   const y = padTop + innerHeight - (tickVal / dynamicMaxFlowY) * innerHeight;
                   return (
@@ -513,10 +601,10 @@ export default function DashboardLayout() {
                   );
                 })}
 
-                {/* Grafikteki noktalar ve Hover tetikleyicileri */}
-                {sensorSeries.map(({ sensor, polyline, coords, color }) => {
+                {/* Grafikteki noktalar ve çizgiler */}
+                {activeSeries.map(({ id, polyline, coords, color }) => {
                   return (
-                    <g key={sensor.id}>
+                    <g key={id}>
                       <polyline fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={polyline} />
                       
                       {coords.map((coord, i) => (
@@ -528,7 +616,7 @@ export default function DashboardLayout() {
                             r="12"
                             fill="transparent"
                             className="cursor-crosshair"
-                            onMouseEnter={(e) => setHoveredPoint({ ...coord, clientX: e.clientX, clientY: e.clientY })}
+                            onMouseEnter={(e) => setHoveredPoint({ ...coord, color, clientX: e.clientX, clientY: e.clientY })}
                             onMouseLeave={() => setHoveredPoint(null)}
                           />
                           {/* Görsel nokta, hover yapılınca büyür */}
@@ -562,18 +650,25 @@ export default function DashboardLayout() {
                 )}
               </svg>
 
+              {/* Dinamik Grafik Lejantı (Village / Sensor geçişine uyumlu) */}
               <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-slate-200/80 text-xs">
-                {visibleSensors.map((s) => (
-                  <div key={s.id} className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: sensorColors[s.id] || '#0f766e' }} />
-                    <span className="font-medium text-slate-700">{s.id} ({s.name}):</span>
-                    <span className="font-bold text-slate-900">{s.current.flowRateLps.toFixed(2)} L/s</span>
-                  </div>
-                ))}
+                <TopThreeList 
+                  items={activeSeries}
+                  renderItem={(s) => (
+                    <div key={s.id} className="flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ backgroundColor: s.color }} />
+                      <span className="font-medium text-slate-700 truncate max-w-[150px]" title={s.name}>{s.id} ({s.name}):</span>
+                      <span className="font-bold text-slate-900 shrink-0">
+                        {s.coords[s.coords.length - 1]?.pt.flowRateLps.toFixed(2)} L/s
+                      </span>
+                    </div>
+                  )}
+                />
               </div>
             </div>
           </div>
 
+          {/* Sensor Status Logs Panel */}
           <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col max-h-[500px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-800">Alerts & Recent Events</h3>
