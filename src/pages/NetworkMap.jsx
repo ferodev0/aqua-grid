@@ -282,16 +282,16 @@ export function NetworkMap() {
 
     const sourceSensor = {
       id: uuidv4(),
-      name: `Source Sensor ${sensors.length + 1}`,
+      name: branchPoint ? `Branch Source ${sensors.length + 1}` : `Source Sensor ${sensors.length + 1}`,
       channelSegmentId: newSegment.id,
-      location: { lat: channelPoints[0][0], lng: channelPoints[0][1], label: 'Channel source' },
+      location: { lat: channelPoints[0][0], lng: channelPoints[0][1], label: branchPoint ? 'Branch tap point' : 'Channel source' },
       status: 'normal',
       current: {
-        flowRateLps: 5.0,
+        flowRateLps: newSegment.flowRateLps,
         waterLevelM: 1.0,
         updatedAt: new Date().toISOString(),
       },
-      baseline: { flowRateLps: 5.0, waterLevelM: 1.0 },
+      baseline: { flowRateLps: newSegment.flowRateLps, waterLevelM: 1.0 },
     };
     addSensor(sourceSensor);
 
@@ -302,15 +302,15 @@ export function NetworkMap() {
       location: {
         lat: channelPoints[channelPoints.length - 1][0],
         lng: channelPoints[channelPoints.length - 1][1],
-        label: 'Channel mouth',
+        label: 'Channel mouth (dead end)',
       },
       status: 'normal',
       current: {
-        flowRateLps: 3.0,
+        flowRateLps: newSegment.flowRateLps,
         waterLevelM: 0.3,
         updatedAt: new Date().toISOString(),
       },
-      baseline: { flowRateLps: 3.0, waterLevelM: 0.3 },
+      baseline: { flowRateLps: newSegment.flowRateLps, waterLevelM: 0.3 },
     };
     addSensor(mouthSensor);
 
