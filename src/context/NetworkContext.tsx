@@ -30,6 +30,7 @@ import {
   buildVillageSensorGroups,
   calculateHydropowerEstimate,
   computeNetworkSummaryMetrics,
+  CRISIS_PHASE_DELAYS_MS,
   groupSensorsByArea,
   groupSensorsByVillage,
   groupSensorsByVillageAndArea,
@@ -343,6 +344,16 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
   const isCrisisRef = useRef(isCrisisActive);
   isCrisisRef.current = isCrisisActive;
 
+  const crisisStartedAtRef = useRef<number | null>(null);
+  const crisisPhaseTimersRef = useRef<number[]>([]);
+
+  const clearCrisisPhaseTimers = useCallback(() => {
+    for (const id of crisisPhaseTimersRef.current) {
+      window.clearTimeout(id);
+    }
+    crisisPhaseTimersRef.current = [];
+  }, []);
+
   const thresholdsRef = useRef(thresholds);
   thresholdsRef.current = thresholds;
 
@@ -359,7 +370,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
         thresholdsRef.current,
         isCrisisRef.current,
         forcedOfflineRef.current,
-        Date.now()
+        Date.now(),
+        crisisStartedAtRef.current
       )
     );
   }, []);
@@ -378,7 +390,9 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const triggerCrisis = useCallback(() => {
     const nowMs = Date.now();
+    clearCrisisPhaseTimers();
     isCrisisRef.current = true;
+    crisisStartedAtRef.current = nowMs;
     setIsCrisisActive(true);
 
     setSimState((prev) => {
@@ -395,15 +409,30 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
         thresholdsRef.current,
         true,
         forcedOfflineRef.current,
-        nowMs
+        nowMs,
+        crisisStartedAtRef.current
       );
     });
-  }, []);
+
+    // Force ticks at phase boundaries so 2s / 4s steps aren't skipped by the 2.5s interval.
+    for (const delayMs of [
+      CRISIS_PHASE_DELAYS_MS.s04Warning,
+      CRISIS_PHASE_DELAYS_MS.s04Critical,
+    ]) {
+      const timerId = window.setTimeout(() => {
+        if (!isCrisisRef.current) return;
+        stepOnce();
+      }, delayMs);
+      crisisPhaseTimersRef.current.push(timerId);
+    }
+  }, [clearCrisisPhaseTimers, stepOnce]);
 
   const resetSimulation = useCallback(() => {
     const nowMs = Date.now();
     const nowIso = new Date(nowMs).toISOString();
+    clearCrisisPhaseTimers();
     isCrisisRef.current = false;
+    crisisStartedAtRef.current = null;
     setIsCrisisActive(false);
 
     const emptyOffline = new Set<string>();
@@ -427,7 +456,9 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       ...freshState,
       alerts: [resetNotice, ...freshState.alerts],
     });
-  }, []);
+  }, [clearCrisisPhaseTimers]);
+
+  useEffect(() => () => clearCrisisPhaseTimers(), [clearCrisisPhaseTimers]);
 
   const toggleCrisis = useCallback(() => {
     if (isCrisisRef.current) {

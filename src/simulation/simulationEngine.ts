@@ -19,20 +19,73 @@ const WATER_DENSITY_KG_PER_M3 = 1000;
 const GRAVITY_M_PER_S2 = 9.81;
 
 /**
- * Target multipliers applied during the crisis simulation scenario (Spec Section 8.3):
- * - S01 and S02 remain near normal.
- * - S03 experiences a sudden flow reduction (Warning range).
- * - S04 experiences a larger downstream reduction (Critical range).
+ * Staged crisis timeline (from trigger). Map markers progress:
+ * 1) immediately → S03 warning (orange)
+ * 2) +2s → S04 warning (orange)
+ * 3) +2s more → S04 critical (red); S03 stays warning
  */
-export const CRISIS_SENSOR_MULTIPLIERS: Record<
-  string,
-  { flowMultiplier: number; levelMultiplier: number }
-> = {
+export const CRISIS_PHASE_DELAYS_MS = {
+  s03Warning: 0,
+  s04Warning: 2_000,
+  s04Critical: 4_000,
+} as const;
+
+type CrisisMultiplier = { flowMultiplier: number; levelMultiplier: number };
+
+/** Final-phase targets (fully escalated crisis). */
+export const CRISIS_SENSOR_MULTIPLIERS: Record<string, CrisisMultiplier> = {
   S01: { flowMultiplier: 0.99, levelMultiplier: 0.99 },
   S02: { flowMultiplier: 0.97, levelMultiplier: 0.98 },
   S03: { flowMultiplier: 0.72, levelMultiplier: 0.75 },
   S04: { flowMultiplier: 0.46, levelMultiplier: 0.52 },
 };
+
+const CRISIS_NEAR_BASELINE: CrisisMultiplier = {
+  flowMultiplier: 0.97,
+  levelMultiplier: 0.98,
+};
+
+const CRISIS_S04_WARNING: CrisisMultiplier = {
+  flowMultiplier: 0.74,
+  levelMultiplier: 0.76,
+};
+
+/**
+ * Resolves per-sensor flow/level targets for the current crisis phase.
+ */
+export function resolveCrisisMultipliers(
+  sensorId: string,
+  isCrisisActive: boolean,
+  crisisElapsedMs: number = 0
+): CrisisMultiplier {
+  if (!isCrisisActive) {
+    return { flowMultiplier: 1.0, levelMultiplier: 1.0 };
+  }
+
+  const s03Warning =
+    crisisElapsedMs >= CRISIS_PHASE_DELAYS_MS.s03Warning;
+  const s04Warning =
+    crisisElapsedMs >= CRISIS_PHASE_DELAYS_MS.s04Warning;
+  const s04Critical =
+    crisisElapsedMs >= CRISIS_PHASE_DELAYS_MS.s04Critical;
+
+  switch (sensorId) {
+    case "S01":
+      return CRISIS_SENSOR_MULTIPLIERS.S01;
+    case "S02":
+      return CRISIS_SENSOR_MULTIPLIERS.S02;
+    case "S03":
+      return s03Warning
+        ? CRISIS_SENSOR_MULTIPLIERS.S03
+        : CRISIS_NEAR_BASELINE;
+    case "S04":
+      if (s04Critical) return CRISIS_SENSOR_MULTIPLIERS.S04;
+      if (s04Warning) return CRISIS_S04_WARNING;
+      return CRISIS_NEAR_BASELINE;
+    default:
+      return CRISIS_NEAR_BASELINE;
+  }
+}
 
 /**
  * Generates a small bounded random fluctuation in the range [-maxDelta, +maxDelta].
@@ -57,7 +110,8 @@ export function advanceSensorReading(
   thresholds: AlertThresholds,
   isCrisisActive: boolean,
   forceOfflineIds: ReadonlySet<string>,
-  nowMs: number = Date.now()
+  nowMs: number = Date.now(),
+  crisisStartedAtMs: number | null = null
 ): Sensor {
   const isForcedOffline = forceOfflineIds.has(sensor.id);
   const nowIso = new Date(nowMs).toISOString();
@@ -69,13 +123,16 @@ export function advanceSensorReading(
     };
   }
 
-  // Determine scenario multiplier for this station
-  const crisisTarget = isCrisisActive
-    ? CRISIS_SENSOR_MULTIPLIERS[sensor.id] ?? {
-        flowMultiplier: 0.85,
-        levelMultiplier: 0.88,
-      }
-    : { flowMultiplier: 1.0, levelMultiplier: 1.0 };
+  const crisisElapsedMs =
+    isCrisisActive && crisisStartedAtMs != null
+      ? Math.max(0, nowMs - crisisStartedAtMs)
+      : 0;
+
+  const crisisTarget = resolveCrisisMultipliers(
+    sensor.id,
+    isCrisisActive,
+    crisisElapsedMs
+  );
 
   // Bounded variation (±1.8%) around target baseline multiplier
   const flowFactor = clamp(
@@ -147,7 +204,8 @@ export function runSimulationTick(
   thresholds: AlertThresholds,
   isCrisisActive: boolean,
   forceOfflineIds: ReadonlySet<string> = new Set(),
-  nowMs: number = Date.now()
+  nowMs: number = Date.now(),
+  crisisStartedAtMs: number | null = null
 ): SimulationTickState {
   const nowIso = new Date(nowMs).toISOString();
 
@@ -157,7 +215,8 @@ export function runSimulationTick(
       thresholds,
       isCrisisActive,
       forceOfflineIds,
-      nowMs
+      nowMs,
+      crisisStartedAtMs
     )
   );
 

@@ -265,7 +265,6 @@ function SchematicNetworkDiagram({
   onSelectSensor,
   onSelectSegment,
   t,
-  tSensorName,
   tSegmentName,
 }) {
   const allCoords = useMemo(() => {
@@ -472,33 +471,6 @@ function SchematicNetworkDiagram({
               >
                 {sensor.id}
               </text>
-              <g transform={`translate(${pt.x + 16}, ${pt.y - 14})`}>
-                <rect
-                  x="0"
-                  y="0"
-                  width="144"
-                  height="36"
-                  rx="6"
-                  fill="#1e293b"
-                  stroke={isSelected ? '#2dd4bf' : '#334155'}
-                  strokeWidth="1"
-                />
-                <text
-                  x="8"
-                  y="14"
-                  className="fill-slate-100 text-[10px] font-semibold"
-                >
-                  {sensor.id} · {tSensorName(sensor).slice(0, 15)}
-                </text>
-                <text
-                  x="8"
-                  y="28"
-                  className="fill-teal-300 font-mono text-[10px]"
-                >
-                  {sensor.current.flowRateLps.toFixed(1)} L/s ·{' '}
-                  {sensor.current.waterLevelM.toFixed(2)} m
-                </text>
-              </g>
             </g>
           );
         })}
@@ -1196,7 +1168,6 @@ export function NetworkMap({ title }) {
               onSelectSensor={(id) => handleSelectSensor(id, false)}
               onSelectSegment={handleSelectSegment}
               t={t}
-              tSensorName={tSensorName}
               tSegmentName={tSegmentName}
             />
           ) : (
