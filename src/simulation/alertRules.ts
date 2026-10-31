@@ -1,4 +1,4 @@
-import {
+import type {
   AlertSeverity,
   AlertThresholds,
   AquaAlert,

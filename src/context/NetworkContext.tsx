@@ -21,9 +21,9 @@ import {
   computeNetworkSummaryMetrics,
   runSimulationTick,
   SIMULATION_TICK_INTERVAL_MS,
-  SimulationTickState,
+  type SimulationTickState,
 } from "../simulation/simulationEngine";
-import {
+import type {
   AlertThresholds,
   AquaAlert,
   ChannelSegment,
@@ -116,13 +116,16 @@ export interface NetworkContextValue {
   ) => HydropowerEstimateResult;
 }
 
-const NetworkContext = createContext<NetworkContextValue | undefined>(undefined);
-
 function createInitialSimulationState(): SimulationTickState {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
   const sensors = createInitialSensors(nowIso);
-  const telemetryHistory = createInitialTelemetryHistory(sensors, 36, 5 * 60 * 1000, nowMs);
+  const telemetryHistory = createInitialTelemetryHistory(
+    sensors,
+    36,
+    5 * 60 * 1000,
+    nowMs
+  );
   const alerts = createInitialAlerts(nowIso);
 
   return {
@@ -136,9 +139,88 @@ function createInitialSimulationState(): SimulationTickState {
   };
 }
 
+/**
+ * Fallback context value so calling `useNetwork()` outside `<NetworkProvider>`
+ * logs a helpful console warning instead of crashing the React tree into a white screen.
+ */
+function createFallbackContextValue(): NetworkContextValue {
+  const initial = createInitialSimulationState();
+  const summaryMetrics = computeNetworkSummaryMetrics(
+    initial.sensors,
+    initial.alerts
+  );
+  const warnMissingProvider = () => {
+    console.warn(
+      "[Aqua Grid] Component called a simulation action without <NetworkProvider> mounted above it."
+    );
+  };
+
+  return {
+    demoBannerText: DEMO_MODE_LABEL,
+    sensors: initial.sensors,
+    channelSegments: initial.channelSegments,
+    alerts: initial.alerts,
+    telemetryHistory: initial.telemetryHistory,
+    isCrisisActive: false,
+    isRunning: false,
+    thresholds: DEFAULT_ALERT_THRESHOLDS,
+    summaryMetrics,
+    forcedOfflineSensorIds: [],
+    triggerCrisis: warnMissingProvider,
+    resetSimulation: warnMissingProvider,
+    toggleCrisis: warnMissingProvider,
+    setSimulationRunning: warnMissingProvider,
+    stepOnce: warnMissingProvider,
+    updateThresholds: warnMissingProvider,
+    resolveAlert: warnMissingProvider,
+    toggleSensorOffline: warnMissingProvider,
+    addSensor: (input) => {
+      warnMissingProvider();
+      return initial.sensors[0] ?? createInitialSensors()[0];
+      void input;
+    },
+    updateSensor: warnMissingProvider,
+    removeSensor: warnMissingProvider,
+    addChannelSegment: (input) => {
+      warnMissingProvider();
+      return {
+        id: input.id ?? "SEG-FALLBACK",
+        name: input.name,
+        upstreamSensorId: input.upstreamSensorId,
+        downstreamSensorId: input.downstreamSensorId,
+        path: input.path,
+        isIllustrative: true,
+      };
+    },
+    updateChannelSegment: warnMissingProvider,
+    removeChannelSegment: warnMissingProvider,
+    getSensorById: (sensorId) =>
+      initial.sensors.find(
+        (s) => s.id.toLowerCase() === sensorId.toLowerCase()
+      ),
+    getSensorTelemetry: (sensorId, range = "1h") => {
+      const points = initial.telemetryHistory.filter(
+        (pt) => pt.sensorId.toLowerCase() === sensorId.toLowerCase()
+      );
+      const limit = range === "7d" ? 96 : range === "24h" ? 48 : 24;
+      return points.slice(-limit);
+    },
+    getSensorAlerts: (sensorId) =>
+      initial.alerts.filter((a) =>
+        a.sensorIds.some((id) => id.toLowerCase() === sensorId.toLowerCase())
+      ),
+    estimateHydropower: calculateHydropowerEstimate,
+  };
+}
+
+const NetworkContext = createContext<NetworkContextValue | null>(null);
+const fallbackContextValue = createFallbackContextValue();
+
 export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const parentContext = useContext(NetworkContext);
+
   const [simState, setSimState] = useState<SimulationTickState>(() =>
     createInitialSimulationState()
   );
@@ -174,7 +256,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   useEffect(() => {
-    if (!isRunning) {
+    // If nested inside an already-mounted NetworkProvider, let the outer provider drive the timer
+    if (parentContext || !isRunning) {
       return;
     }
     const timer = window.setInterval(() => {
@@ -182,7 +265,7 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
     }, SIMULATION_TICK_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
-  }, [isRunning, stepOnce]);
+  }, [parentContext, isRunning, stepOnce]);
 
   const triggerCrisis = useCallback(() => {
     const nowMs = Date.now();
@@ -194,7 +277,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       const crisisEventAlert: AquaAlert = {
         id: `ALT-SYS-CRISIS-${nowMs}`,
         severity: "critical",
-        title: "Crisis Simulation Activated — Unexpected Downstream Flow Reduction",
+        title:
+          "Crisis Simulation Activated — Unexpected Downstream Flow Reduction",
         message:
           "Simulated downstream reduction triggered across Village Approach (S03) and Lower Channel (S04). Upstream stations S01 and S02 remain near baseline. Field inspection of sections SEG-03 and SEG-04 is recommended.",
         sensorIds: ["S03", "S04"],
@@ -537,7 +621,6 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
         (pt) => pt.sensorId.toLowerCase() === sensorId.toLowerCase()
       );
 
-      // Slice appropriate point density for the selected time range view
       const maxPointsByRange: Record<TelemetryTimeRange, number> = {
         "1h": 24,
         "24h": 48,
@@ -630,6 +713,11 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
     ]
   );
 
+  // If already inside a parent NetworkProvider, reuse parent context so nested providers never conflict
+  if (parentContext) {
+    return <>{children}</>;
+  }
+
   return (
     <NetworkContext.Provider value={contextValue}>
       {children}
@@ -639,11 +727,15 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
 
 /**
  * Primary hook for consuming the shared Aqua Grid simulation state and controls.
+ * Never throws a fatal white-screen error even if `<NetworkProvider>` was omitted higher up.
  */
 export function useNetwork(): NetworkContextValue {
   const context = useContext(NetworkContext);
   if (!context) {
-    throw new Error("useNetwork must be used within a <NetworkProvider>");
+    console.warn(
+      "[Aqua Grid] useNetwork() was called outside <NetworkProvider>. Returning fallback initial state. Wrap <App /> in <NetworkProvider> for live updates."
+    );
+    return fallbackContextValue;
   }
   return context;
 }
