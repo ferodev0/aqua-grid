@@ -2,15 +2,19 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { StatusBadge } from '../components/sensors/StatusBadge';
+import { useLanguage } from '../context/LanguageContext';
 import { useNetwork } from '../context/NetworkContext';
 
 export function SensorsIndexPage() {
   const navigate = useNavigate();
+  const { t, tSensorName, tSensorLocation, tSegmentName } = useLanguage();
   const { sensors, channelSegments } = useNetwork();
   const [query, setQuery] = useState('');
 
-  const segmentName = (segmentId) =>
-    channelSegments.find((s) => s.id === segmentId)?.name ?? segmentId;
+  const segmentName = (segmentId) => {
+    const seg = channelSegments.find((s) => s.id === segmentId);
+    return tSegmentName(segmentId, seg?.name);
+  };
 
   const filteredSensors = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -18,23 +22,24 @@ export function SensorsIndexPage() {
     return sensors.filter(
       (sensor) =>
         sensor.id.toLowerCase().includes(q) ||
-        sensor.name.toLowerCase().includes(q)
+        sensor.name.toLowerCase().includes(q) ||
+        tSensorName(sensor).toLowerCase().includes(q)
     );
-  }, [sensors, query]);
+  }, [sensors, query, tSensorName]);
 
   return (
-    <AppLayout title="Sensors" denseHeader>
+    <AppLayout title={t('sensors.title')} denseHeader>
       <p className="mb-4 text-sm text-slate-500">
-        Live demonstration stations from the shared simulation.
+        {t('sensors.subtitle')}
       </p>
 
       <label className="relative mb-4 block w-full max-w-md">
-        <span className="sr-only">Search sensors by ID or station name</span>
+        <span className="sr-only">{t('sensors.searchAria')}</span>
         <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search by ID or station…"
+          placeholder={t('sensors.searchPlaceholder')}
           className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
         />
         <svg
@@ -58,13 +63,13 @@ export function SensorsIndexPage() {
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Station</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Channel</th>
-                <th className="px-4 py-3 text-right">Flow</th>
-                <th className="px-4 py-3 text-right">Level</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">{t('sensors.table.id')}</th>
+                <th className="px-4 py-3">{t('sensors.table.station')}</th>
+                <th className="px-4 py-3">{t('sensors.table.location')}</th>
+                <th className="px-4 py-3">{t('sensors.table.channel')}</th>
+                <th className="px-4 py-3 text-right">{t('sensors.table.flow')}</th>
+                <th className="px-4 py-3 text-right">{t('sensors.table.level')}</th>
+                <th className="px-4 py-3">{t('sensors.table.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -74,7 +79,7 @@ export function SensorsIndexPage() {
                     colSpan={7}
                     className="px-4 py-8 text-center text-sm text-slate-500"
                   >
-                    No stations match “{query.trim()}”.
+                    {t('sensors.noMatch', { query: query.trim() })}
                   </td>
                 </tr>
               ) : (
@@ -96,10 +101,10 @@ export function SensorsIndexPage() {
                       {sensor.id}
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-800">
-                      {sensor.name}
+                      {tSensorName(sensor)}
                     </td>
                     <td className="max-w-[220px] truncate px-4 py-3 text-slate-500">
-                      {sensor.location.label}
+                      {tSensorLocation(sensor)}
                     </td>
                     <td className="max-w-[200px] truncate px-4 py-3 text-slate-500">
                       {segmentName(sensor.channelSegmentId)}

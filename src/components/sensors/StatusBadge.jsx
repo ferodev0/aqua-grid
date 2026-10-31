@@ -1,3 +1,5 @@
+import { useLanguage } from '../../context/LanguageContext';
+
 /** Matches DashboardLayout STATUS_BADGE_STYLES */
 const STATUS_STYLES = {
   normal: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -7,13 +9,14 @@ const STATUS_STYLES = {
 };
 
 export function StatusBadge({ status = 'normal' }) {
+  const { t } = useLanguage();
   const style = STATUS_STYLES[status] ?? STATUS_STYLES.offline;
 
   return (
     <span
       className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold uppercase ${style}`}
     >
-      {status}
+      {t(`status.${status}`)}
     </span>
   );
 }

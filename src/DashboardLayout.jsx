@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { AppLayout } from './components/layout/AppLayout';
+import { useLanguage } from './context/LanguageContext';
 import { useNetwork } from './context/NetworkContext';
+import './index.css';
 
 const SENSOR_COLORS = {
   S01: '#0d9488', // teal-600
@@ -36,6 +38,8 @@ function formatTime(isoString) {
 export default function DashboardLayout() {
   const [selectedRange, setSelectedRange] = useState('1h');
   const [selectedSensorId, setSelectedSensorId] = useState('ALL');
+
+  const { t, tSensorName, tAlert } = useLanguage();
 
   const {
     sensors,
@@ -90,11 +94,9 @@ export default function DashboardLayout() {
   );
 
   return (
-    <AppLayout title="Network Overview" denseHeader>
+    <AppLayout title={t('dashboard.title')} denseHeader>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">
-          Lefke Canal Concept — Distributed Flow & Level Monitoring
-        </p>
+        <p className="text-sm text-slate-500">{t('dashboard.subtitle')}</p>
         <div className="flex flex-wrap items-center gap-3">
           {!isCrisisActive ? (
             <button
@@ -102,7 +104,7 @@ export default function DashboardLayout() {
               onClick={triggerCrisis}
               className="cursor-pointer rounded bg-red-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
             >
-              Trigger Crisis Simulation
+              {t('demo.triggerCrisisSimulation')}
             </button>
           ) : (
             <button
@@ -110,29 +112,29 @@ export default function DashboardLayout() {
               onClick={resetSimulation}
               className="cursor-pointer rounded bg-slate-800 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-900"
             >
-              Reset Simulation
+              {t('demo.resetSimulationBtn')}
             </button>
           )}
         </div>
       </div>
 
-      {/* Top Summary Cards (Flexbox) */}
+      {/* Top Summary Cards */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="text-slate-500 text-sm font-medium mb-1">
-            Estimated Power Potential
+            {t('dashboard.powerPotential')}
           </h3>
           <div className="text-3xl font-bold text-slate-800">
             {summaryMetrics.illustrativePowerPotentialWatts.toFixed(0)} W
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Illustrative estimate (2.8 m head, 65% eff.)
+            {t('dashboard.powerPotentialSub')}
           </p>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="text-slate-500 text-sm font-medium mb-1">
-            Active Sensors
+            {t('dashboard.activeSensors')}
           </h3>
           <div className="text-3xl font-bold text-slate-800">
             {summaryMetrics.activeSensorsCount} / {summaryMetrics.totalSensors}
@@ -140,23 +142,29 @@ export default function DashboardLayout() {
           <p className="text-xs text-slate-400 mt-1">
             {summaryMetrics.attentionSensorsCount > 0 ? (
               <span className="text-amber-600 font-semibold">
-                {summaryMetrics.attentionSensorsCount} station(s) require inspection
+                {t('dashboard.attentionRequired', {
+                  count: summaryMetrics.attentionSensorsCount,
+                })}
               </span>
             ) : (
-              'All stations reporting within normal range'
+              t('dashboard.allStationsNormal')
             )}
           </p>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="text-slate-500 text-sm font-medium mb-1">
-            Reference Flow ({summaryMetrics.referenceSensorId})
+            {t('dashboard.referenceFlow', {
+              sensorId: summaryMetrics.referenceSensorId,
+            })}
           </h3>
           <div className="text-3xl font-bold text-slate-800">
             {summaryMetrics.referenceInflowLps.toFixed(1)} L/s
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Downstream ({summaryMetrics.terminalSensorId}):{' '}
+            {t('dashboard.downstreamFlow', {
+              sensorId: summaryMetrics.terminalSensorId,
+            })}{' '}
             <span
               className={
                 isCrisisActive ? 'text-red-600 font-semibold' : 'text-slate-600'
@@ -169,7 +177,7 @@ export default function DashboardLayout() {
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="text-slate-500 text-sm font-medium mb-1">
-            Open Alerts
+            {t('dashboard.openAlerts')}
           </h3>
           <div
             className={`text-3xl font-bold ${
@@ -184,8 +192,8 @@ export default function DashboardLayout() {
           </div>
           <p className="text-xs text-slate-400 mt-1">
             {isCrisisActive
-              ? 'Downstream anomaly active — inspect S03 & S04'
-              : 'Rule-based threshold monitoring active'}
+              ? t('dashboard.openAlertsCrisisSub')
+              : t('dashboard.openAlertsNormalSub')}
           </p>
         </div>
       </section>
@@ -208,27 +216,39 @@ export default function DashboardLayout() {
           >
             <div className="flex items-center justify-between mb-1.5">
               <span className="font-semibold text-sm text-slate-800">
-                {sensor.id} — {sensor.name}
+                {sensor.id} — {tSensorName(sensor)}
               </span>
               <span
                 className={`text-xs font-semibold uppercase px-2 py-0.5 rounded border ${
                   STATUS_BADGE_STYLES[sensor.status] || STATUS_BADGE_STYLES.normal
                 }`}
               >
-                {sensor.status}
+                {t(`status.${sensor.status}`)}
               </span>
             </div>
             <div className="flex justify-between text-xs text-slate-600">
               <span>
-                Flow: <strong className="text-slate-800">{sensor.current.flowRateLps.toFixed(2)} L/s</strong>
+                {t('dashboard.flowLabel')}{' '}
+                <strong className="text-slate-800">
+                  {sensor.current.flowRateLps.toFixed(2)} L/s
+                </strong>
               </span>
               <span>
-                Level: <strong className="text-slate-800">{sensor.current.waterLevelM.toFixed(2)} m</strong>
+                {t('dashboard.levelLabel')}{' '}
+                <strong className="text-slate-800">
+                  {sensor.current.waterLevelM.toFixed(2)} m
+                </strong>
               </span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1 flex justify-between">
-              <span>Baseline: {sensor.baseline.flowRateLps.toFixed(1)} L/s</span>
-              <span>Updated {formatTime(sensor.current.updatedAt)}</span>
+              <span>
+                {t('dashboard.baselineLabel')} {sensor.baseline.flowRateLps.toFixed(1)} L/s
+              </span>
+              <span>
+                {t('dashboard.updatedLabel', {
+                  time: formatTime(sensor.current.updatedAt),
+                })}
+              </span>
             </div>
           </div>
         ))}
@@ -241,10 +261,10 @@ export default function DashboardLayout() {
           <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
             <div>
               <h3 className="text-lg font-semibold text-slate-800">
-                Simulated Water Flow Rate (L/s)
+                {t('dashboard.chartTitle')}
               </h3>
               <p className="text-xs text-slate-500">
-                Live telemetry stream (click a station card above to isolate)
+                {t('dashboard.chartSubtitle')}
               </p>
             </div>
 
@@ -254,16 +274,16 @@ export default function DashboardLayout() {
                 onChange={(e) => setSelectedSensorId(e.target.value)}
                 className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-slate-700 font-medium"
               >
-                <option value="ALL">All Stations (S01–S04)</option>
+                <option value="ALL">{t('dashboard.allStationsOption')}</option>
                 {sensors.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.id} — {s.name}
+                    {s.id} — {tSensorName(s)}
                   </option>
                 ))}
               </select>
 
               <div className="flex text-xs bg-slate-100 p-0.5 rounded border border-slate-200">
-                {(['1h', '24h', '7d']).map((range) => (
+                {['1h', '24h', '7d'].map((range) => (
                   <button
                     key={range}
                     type="button"
@@ -387,7 +407,7 @@ export default function DashboardLayout() {
                     }}
                   />
                   <span className="font-medium text-slate-700">
-                    {s.id} ({s.name}):
+                    {s.id} ({tSensorName(s)}):
                   </span>
                   <span className="font-bold text-slate-900">
                     {s.current.flowRateLps.toFixed(2)} L/s
@@ -402,51 +422,59 @@ export default function DashboardLayout() {
         <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col max-h-[500px]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800">
-              Alerts & Recent Events
+              {t('dashboard.alertsTitle')}
             </h3>
             <span className="text-xs font-medium text-slate-500">
-              {alerts.filter((a) => a.status === 'active').length} active
+              {t('dashboard.activeAlertsCount', {
+                count: alerts.filter((a) => a.status === 'active').length,
+              })}
             </span>
           </div>
 
           <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className={`p-3 border rounded-lg transition-opacity ${
-                  ALERT_BADGE_STYLES[alert.severity] || ALERT_BADGE_STYLES.info
-                } ${alert.status === 'resolved' ? 'opacity-60' : ''}`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {alert.severity} • {alert.status}
-                  </span>
-                  <span className="text-[11px] opacity-75">
-                    {formatTime(alert.createdAt)}
-                  </span>
-                </div>
-                <div className="text-sm font-semibold mb-1">{alert.title}</div>
-                <p className="text-xs leading-relaxed opacity-90">
-                  {alert.message}
-                </p>
-                {alert.sensorIds?.length > 0 && (
-                  <div className="flex gap-1.5 mt-2">
-                    {alert.sensorIds.map((id) => (
-                      <span
-                        key={id}
-                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/80 border border-current/20"
-                      >
-                        Station {id}
-                      </span>
-                    ))}
+            {alerts.map((alert) => {
+              const localized = tAlert(alert);
+              return (
+                <div
+                  key={alert.id}
+                  className={`p-3 border rounded-lg transition-opacity ${
+                    ALERT_BADGE_STYLES[alert.severity] ||
+                    ALERT_BADGE_STYLES.info
+                  } ${alert.status === 'resolved' ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider">
+                      {t(`severity.${alert.severity}`)} •{' '}
+                      {t(`alertStatus.${alert.status}`)}
+                    </span>
+                    <span className="text-[11px] opacity-75">
+                      {formatTime(alert.createdAt)}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
+                  <div className="text-sm font-semibold mb-1">
+                    {localized.title}
+                  </div>
+                  <p className="text-xs leading-relaxed opacity-90">
+                    {localized.message}
+                  </p>
+                  {alert.sensorIds?.length > 0 && (
+                    <div className="flex gap-1.5 mt-2">
+                      {alert.sensorIds.map((id) => (
+                        <span
+                          key={id}
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/80 border border-current/20"
+                        >
+                          {t('dashboard.stationTag', { id })}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
-            
     </AppLayout>
   );
 }

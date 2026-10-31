@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export function SensorDeviceMetadataModal({
   open,
@@ -6,6 +7,8 @@ export function SensorDeviceMetadataModal({
   sensor,
   segment,
 }) {
+  const { t, tSegmentName } = useLanguage();
+
   useEffect(() => {
     if (!open) return undefined;
 
@@ -25,24 +28,27 @@ export function SensorDeviceMetadataModal({
   if (!open || !sensor) return null;
 
   const rows = [
-    ['Sensor type', 'Ultrasonic level + flow estimate (demo)'],
-    ['Installation', '2026-01-15 (demonstration)'],
-    ['Reporting interval', '2.5 s (simulated)'],
+    [t('metadata.sensorType'), t('metadata.sensorTypeVal')],
+    [t('metadata.installation'), t('metadata.installationVal')],
+    [t('metadata.reportingInterval'), t('metadata.reportingIntervalVal')],
     [
-      'Battery',
+      t('metadata.battery'),
       sensor.current.batteryPercent != null
         ? `${sensor.current.batteryPercent}%`
         : '—',
     ],
     [
-      'Signal strength',
+      t('metadata.signalStrength'),
       sensor.current.signalPercent != null
         ? `${sensor.current.signalPercent}%`
         : '—',
     ],
-    ['Channel segment', segment?.name ?? sensor.channelSegmentId],
-    ['Upstream', segment?.upstreamSensorId ?? '—'],
-    ['Downstream', segment?.downstreamSensorId ?? '—'],
+    [
+      t('metadata.channelSegment'),
+      tSegmentName(sensor.channelSegmentId, segment?.name),
+    ],
+    [t('metadata.upstream'), segment?.upstreamSensorId ?? '—'],
+    [t('metadata.downstream'), segment?.downstreamSensorId ?? '—'],
   ];
 
   return (
@@ -63,10 +69,10 @@ export function SensorDeviceMetadataModal({
               id="device-metadata-modal-title"
               className="text-base font-semibold text-slate-800"
             >
-              Device metadata
+              {t('metadata.title')}
             </h4>
             <p className="text-xs text-slate-400">
-              Simulated properties for demonstration only
+              {t('metadata.subtitle')}
             </p>
           </div>
           <button
@@ -74,7 +80,7 @@ export function SensorDeviceMetadataModal({
             onClick={onClose}
             className="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
           >
-            Close
+            {t('common.close')}
           </button>
         </div>
 

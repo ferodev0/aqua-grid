@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 
 const TIME_RANGES = [
   { id: '1h', label: '1h' },
@@ -35,6 +36,7 @@ export function SensorTelemetryChart({
   sensorName,
   currentFlowLps,
 }) {
+  const { t } = useLanguage();
   const [hoverIndex, setHoverIndex] = useState(null);
 
   const chartWidth = 680;
@@ -88,10 +90,10 @@ export function SensorTelemetryChart({
       <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">
-            Telemetry over time
+            {t('chart.telemetryOverTime')}
           </h3>
           <p className="text-xs text-slate-500">
-            Simulated water flow rate (L/s) · shared history
+            {t('chart.sharedHistory')}
           </p>
         </div>
 
@@ -115,7 +117,7 @@ export function SensorTelemetryChart({
 
       {series.length === 0 ? (
         <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-sm text-slate-400">
-          Waiting for telemetry points…
+          {t('chart.waitingTelemetry')}
         </div>
       ) : (
         <div className="relative flex min-h-0 flex-1 flex-col justify-between rounded-lg border border-slate-200 bg-slate-50/70 p-3">
@@ -234,13 +236,13 @@ export function SensorTelemetryChart({
                 {formatTime(hover.pt.timestamp)}
               </p>
               <p className="mt-1 text-slate-600">
-                Flow:{' '}
+                {t('dashboard.flowLabel')}{' '}
                 <span className="font-bold text-slate-900">
                   {hover.pt.flowRateLps.toFixed(2)} L/s
                 </span>
               </p>
               <p className="text-slate-600">
-                Level:{' '}
+                {t('dashboard.levelLabel')}{' '}
                 <span className="font-bold text-slate-900">
                   {hover.pt.waterLevelM.toFixed(3)} m
                 </span>

@@ -1,11 +1,53 @@
 import { useEffect, useRef } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
+import { useLanguage } from '../../context/LanguageContext';
 import aboutContent from './aboutContent.json';
 import './AboutPage.css';
 
-export function AboutPage({ title = 'Impact / About' }) {
+const DEFAULT_EN_COPY = {
+  hero: {
+    kicker: 'A clearer view of every drop',
+    title: 'Observe the flow, understand the channel.',
+    intro:
+      'Aqua Grid is a concept for connecting water-channel observations across Lefke—helping people see what is changing, where to look closer, and what to explore next.',
+    tags: ['Water monitoring', 'Shared insight', 'Careful exploration'],
+    mark: 'LEFKE · WATER · COMMUNITY',
+    footLeft: 'THE IDEA',
+    footRight: 'From a single reading to a connected picture',
+  },
+  storyHeading: {
+    eyebrow: 'A connected story',
+    title: 'Small observations. A clearer way forward.',
+    body: 'Follow the channel from the challenge to the questions this project hopes to help answer.',
+  },
+  storyStops: aboutContent.storyStops,
+  goalsHeading: {
+    eyebrow: 'Intended alignment',
+    title: 'Part of a wider set of goals.',
+    body: 'The project explores connections to these UN Sustainable Development Goals. They describe intent—not proof of impact.',
+  },
+  goals: aboutContent.goals,
+  nextHeading: {
+    eyebrow: 'From concept to fieldwork',
+    title: 'Build the evidence before the network.',
+    body: 'A responsible next step is a measured one. Each phase should guide the next, with local knowledge and approval at the centre.',
+  },
+  roadmap: aboutContent.roadmap,
+  prototypeNote: {
+    title: 'A concept, not a live monitoring system.',
+    body: 'This prototype uses simulated sensor data. Real readings, suitable sensor locations, causes of flow changes, and any hydropower potential would all need to be established through fieldwork and technical assessment.',
+  },
+  footer: 'Better visibility starts with better questions.',
+};
+
+export function AboutPage({ title }) {
+  const { language, t } = useLanguage();
   const storyRef = useRef(null);
   const waterPathRef = useRef(null);
+
+  const copy =
+    (language !== 'en' && aboutContent.localized?.[language]) ||
+    DEFAULT_EN_COPY;
 
   useEffect(() => {
     const story = storyRef.current;
@@ -97,27 +139,23 @@ export function AboutPage({ title = 'Impact / About' }) {
       window.removeEventListener('resize', refreshCanal);
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [language]);
 
   return (
-    <AppLayout title={title}>
+    <AppLayout title={title ?? t('nav.impact')}>
       <div className="aqua-about">
         <section className="aqua-about-hero">
           <div className="aqua-about-hero-copy">
             <p className="aqua-about-kicker">
               <span className="aqua-about-kicker-mark" aria-hidden="true" />
-              A clearer view of every drop
+              {copy.hero.kicker}
             </p>
-            <h1>Observe the flow, understand the channel.</h1>
-            <p className="aqua-about-intro">
-              Aqua Grid is a concept for connecting water-channel observations
-              across Lefke—helping people see what is changing, where to look
-              closer, and what to explore next.
-            </p>
+            <h1>{copy.hero.title}</h1>
+            <p className="aqua-about-intro">{copy.hero.intro}</p>
             <div className="aqua-about-hero-tags">
-              <span>Water monitoring</span>
-              <span>Shared insight</span>
-              <span>Careful exploration</span>
+              {copy.hero.tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
             </div>
           </div>
           <div className="aqua-about-hero-mark" aria-hidden="true">
@@ -142,25 +180,22 @@ export function AboutPage({ title = 'Impact / About' }) {
                 />
               </svg>
             </div>
-            <span>LEFKE · WATER · COMMUNITY</span>
+            <span>{copy.hero.mark}</span>
           </div>
           <div className="aqua-about-hero-foot">
-            <span>THE IDEA</span>
+            <span>{copy.hero.footLeft}</span>
             <span className="aqua-about-hero-rule" />
-            <span>From a single reading to a connected picture</span>
+            <span>{copy.hero.footRight}</span>
           </div>
         </section>
 
         <section className="aqua-about-story-section">
           <div className="aqua-about-section-heading">
             <div>
-              <p className="aqua-about-eyebrow">A connected story</p>
-              <h2>Small observations. A clearer way forward.</h2>
+              <p className="aqua-about-eyebrow">{copy.storyHeading.eyebrow}</p>
+              <h2>{copy.storyHeading.title}</h2>
             </div>
-            <p>
-              Follow the channel from the challenge to the questions this
-              project hopes to help answer.
-            </p>
+            <p>{copy.storyHeading.body}</p>
           </div>
 
           <div className="aqua-about-story" ref={storyRef}>
@@ -180,7 +215,7 @@ export function AboutPage({ title = 'Impact / About' }) {
                 d="M50 0 L50 105 L18 170 L18 285 L50 350 L82 420 L82 535 L50 600 L18 670 L18 785 L50 850 L50 1000"
               />
             </svg>
-            {aboutContent.storyStops.map((stop) => (
+            {copy.storyStops.map((stop) => (
               <article
                 className={`aqua-about-story-row aqua-about-story-row--${stop.side}`}
                 key={stop.number}
@@ -202,16 +237,13 @@ export function AboutPage({ title = 'Impact / About' }) {
         <section className="aqua-about-goals">
           <div className="aqua-about-section-heading">
             <div>
-              <p className="aqua-about-eyebrow">Intended alignment</p>
-              <h2>Part of a wider set of goals.</h2>
+              <p className="aqua-about-eyebrow">{copy.goalsHeading.eyebrow}</p>
+              <h2>{copy.goalsHeading.title}</h2>
             </div>
-            <p>
-              The project explores connections to these UN Sustainable
-              Development Goals. They describe intent—not proof of impact.
-            </p>
+            <p>{copy.goalsHeading.body}</p>
           </div>
           <div className="aqua-about-goal-grid">
-            {aboutContent.goals.map(([number, name, description]) => (
+            {copy.goals.map(([number, name, description]) => (
               <article className="aqua-about-goal-card" key={number}>
                 <span className="aqua-about-goal-number">{number}</span>
                 <div>
@@ -225,15 +257,12 @@ export function AboutPage({ title = 'Impact / About' }) {
 
         <section className="aqua-about-next">
           <div className="aqua-about-next-intro">
-            <p className="aqua-about-eyebrow">From concept to fieldwork</p>
-            <h2>Build the evidence before the network.</h2>
-            <p>
-              A responsible next step is a measured one. Each phase should
-              guide the next, with local knowledge and approval at the centre.
-            </p>
+            <p className="aqua-about-eyebrow">{copy.nextHeading.eyebrow}</p>
+            <h2>{copy.nextHeading.title}</h2>
+            <p>{copy.nextHeading.body}</p>
           </div>
           <ol className="aqua-about-roadmap">
-            {aboutContent.roadmap.map((phase, index) => (
+            {copy.roadmap.map((phase, index) => (
               <li key={phase}>
                 <span>0{index + 1}</span>
                 <p>{phase}</p>
@@ -247,18 +276,13 @@ export function AboutPage({ title = 'Impact / About' }) {
             i
           </span>
           <div>
-            <h2>A concept, not a live monitoring system.</h2>
-            <p>
-              This prototype uses simulated sensor data. Real readings,
-              suitable sensor locations, causes of flow changes, and any
-              hydropower potential would all need to be established through
-              fieldwork and technical assessment.
-            </p>
+            <h2>{copy.prototypeNote.title}</h2>
+            <p>{copy.prototypeNote.body}</p>
           </div>
         </aside>
         <footer className="aqua-about-footer">
           <span>AQUA GRID</span>
-          <span>Better visibility starts with better questions.</span>
+          <span>{copy.footer}</span>
         </footer>
       </div>
     </AppLayout>
