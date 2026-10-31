@@ -3,12 +3,14 @@ import { NavLink } from 'react-router-dom';
 import './index.css';
 import { useNetwork } from './context/NetworkContext';
 
-const SENSOR_COLORS = {
-  S01: '#0d9488', // teal-600
-  S02: '#0284c7', // sky-600
-  S03: '#d97706', // amber-600
-  S04: '#e11d48', // rose-600
-};
+const COLOR_PALETTE = [
+  '#0d9488', // teal-600
+  '#0284c7', // sky-600
+  '#d97706', // amber-600
+  '#e11d48', // rose-600
+  '#8b5cf6', // violet-500
+  '#10b981'  // emerald-500
+];
 
 const STATUS_BADGE_STYLES = {
   normal: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -34,13 +36,36 @@ function formatTime(isoString) {
   });
 }
 
+// Yardımcı bileşen: İlk 10 öğeyi gösterip geri kalanını "+ X Other" olarak gruplayan liste
+function TopTenList({ items, renderItem, emptyMessage = 'No data' }) {
+  if (!items || items.length === 0) {
+    return <div className="text-sm text-slate-500 italic">{emptyMessage}</div>;
+  }
+
+  const topTen = items.slice(0, 10);
+  const remainingCount = items.length - 10;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {topTen.map((item, index) => renderItem(item, index))}
+      
+      {remainingCount > 0 && (
+        <div className="text-center pt-2 mt-1 border-t border-slate-100">
+          <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-3 py-1 rounded-full">
+            + {remainingCount} Other{remainingCount > 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function DashboardLayout() {
-  // Menünün açık/kapalı durumunu tutan state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedRange, setSelectedRange] = useState('1h');
   const [selectedSensorId, setSelectedSensorId] = useState('ALL');
   
-  // Grafik hover state'i
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
   const {
@@ -52,28 +77,33 @@ export default function DashboardLayout() {
     triggerCrisis,
     resetSimulation,
     getSensorTelemetry,
-    estimateHydropower, // Hidroelektrik tahmini için eklendi
   } = useNetwork();
+
+  // Sensör ID'lerine göre dinamik renk eşleştirmesi
+  const sensorColors = useMemo(() => {
+    const colorMap = {};
+    sensors.forEach((s, index) => {
+      colorMap[s.id] = COLOR_PALETTE[index % COLOR_PALETTE.length];
+    });
+    return colorMap;
+  }, [sensors]);
 
   const visibleSensors =
     selectedSensorId === 'ALL'
       ? sensors
       : sensors.filter((s) => s.id === selectedSensorId);
 
-  // Her sensör için hidroelektrik potansiyelini hesaplama (Hover menüsü için)
-const hydropowerData = useMemo(() => {
+  const hydropowerData = useMemo(() => {
     return sensors.map(sensor => {
-      // 1. Akış hızını alıyoruz (eğer yoksa 0 kabul et)
       const flowLps = Number(sensor.current?.flowRateLps) || 0;
+      const RHO = 1000;
+      const G = 9.81;
+      const Q_m3s = flowLps / 1000;
       
-      // 2. Sabitler ve parametreler
-      const RHO = 1000;        // Suyun yoğunluğu (kg/m³)
-      const G = 9.81;          // Yerçekimi ivmesi (m/s²)
-      const Q_m3s = flowLps / 1000; // L/s -> m³/s dönüşümü
-      const HEAD = 2.8;        // Suyun net düşüş yüksekliği (Metre)
-      const EFFICIENCY = 0.65; // Türbin verimliliği (%65)
+      // Sensör objesinde tanımlıysa onu kullan, yoksa varsayılana düş
+      const HEAD = sensor.headHeight || 2.8; 
+      const EFFICIENCY = sensor.turbineEfficiency || 0.65;
       
-      // 3. Formül: P = ρ * g * Q * H * η
       const calculatedWatts = RHO * G * Q_m3s * HEAD * EFFICIENCY;
 
       return {
@@ -81,9 +111,9 @@ const hydropowerData = useMemo(() => {
         name: sensor.name,
         powerWatts: calculatedWatts
       };
-    });
-  }, [sensors]); // estimateHydropower bağımlılığını sildik, sadece sensors yeterli
-  // Build SVG polyline paths for the temporal chart
+    }).sort((a, b) => b.powerWatts - a.powerWatts);
+  }, [sensors]);
+
   const chartWidth = 680;
   const chartHeight = 250;
   const padLeft = 44;
@@ -92,7 +122,27 @@ const hydropowerData = useMemo(() => {
   const padBottom = 32;
   const innerWidth = chartWidth - padLeft - padRight;
   const innerHeight = chartHeight - padTop - padBottom;
-  const maxFlowY = 15; // L/s scale top
+
+  // Veriye dayalı dinamik Y ekseni (maxFlowY) ve tick (çizgi) hesabı
+  const { dynamicMaxFlowY, dynamicTicks } = useMemo(() => {
+    let maxVal = 0;
+    visibleSensors.forEach((sensor) => {
+      const points = getSensorTelemetry(sensor.id, selectedRange);
+      points.forEach((pt) => {
+        if (pt.flowRateLps > maxVal) maxVal = pt.flowRateLps;
+      });
+    });
+    
+    // En yüksek değerin %20 üstünü alarak tavan belirle (minimum 10)
+    const calculatedMax = Math.max(Math.ceil(maxVal * 1.2), 10); 
+    
+    // 5 eşit parçaya bölerek eksen çizgisi (tick) dizisi oluştur
+    const tickCount = 5;
+    const step = calculatedMax / tickCount;
+    const ticks = Array.from({ length: tickCount + 1 }, (_, i) => parseFloat((i * step).toFixed(1)));
+
+    return { dynamicMaxFlowY: calculatedMax, dynamicTicks: ticks };
+  }, [visibleSensors, getSensorTelemetry, selectedRange]);
 
   const sensorSeries = visibleSensors.map((sensor) => {
     const points = getSensorTelemetry(sensor.id, selectedRange);
@@ -102,9 +152,8 @@ const hydropowerData = useMemo(() => {
         (points.length <= 1
           ? innerWidth / 2
           : (idx / (points.length - 1)) * innerWidth);
-      const clampedFlow = Math.min(Math.max(pt.flowRateLps, 0), maxFlowY);
-      const y = padTop + innerHeight - (clampedFlow / maxFlowY) * innerHeight;
-      // Hover için pt verisini ve sensör kimliğini de saklıyoruz
+      const clampedFlow = Math.min(Math.max(pt.flowRateLps, 0), dynamicMaxFlowY);
+      const y = padTop + innerHeight - (clampedFlow / dynamicMaxFlowY) * innerHeight;
       return { x, y, pt, sensorId: sensor.id, sensorName: sensor.name };
     });
 
@@ -112,7 +161,7 @@ const hydropowerData = useMemo(() => {
       sensor,
       coords,
       polyline: coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' '),
-      color: SENSOR_COLORS[sensor.id] || '#0f766e',
+      color: sensorColors[sensor.id] || '#0f766e',
     };
   });
 
@@ -229,7 +278,7 @@ const hydropowerData = useMemo(() => {
             className="fixed z-50 bg-slate-900 text-white text-xs px-3 py-2 rounded shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px]"
             style={{ left: hoveredPoint.clientX, top: hoveredPoint.clientY }}
           >
-            <div className="font-bold mb-1" style={{ color: SENSOR_COLORS[hoveredPoint.sensorId] }}>
+            <div className="font-bold mb-1" style={{ color: sensorColors[hoveredPoint.sensorId] }}>
               {hoveredPoint.sensorId} - {hoveredPoint.sensorName}
             </div>
             <div>Zaman: {formatTime(hoveredPoint.pt.timestamp)}</div>
@@ -284,20 +333,20 @@ const hydropowerData = useMemo(() => {
               Illustrative estimate (2.8 m head, 65% eff.)
             </p>
 
-            {/* Hover ile açılan detay listesi */}
             <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
               <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Potential by Station</div>
-              <div className="flex flex-col gap-1.5">
-                {hydropowerData.map(data => (
+              <TopTenList 
+                items={hydropowerData} 
+                renderItem={(data) => (
                   <div key={data.id} className="flex justify-between items-center text-sm">
                     <span className="text-slate-600 font-medium">
-                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: SENSOR_COLORS[data.id] }}></span>
+                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: sensorColors[data.id] }}></span>
                       {data.id}
                     </span>
                     <span className="font-bold text-teal-700">{data.powerWatts.toFixed(0)} W</span>
                   </div>
-                ))}
-              </div>
+                )}
+              />
             </div>
           </div>
 
@@ -319,26 +368,27 @@ const hydropowerData = useMemo(() => {
               )}
             </p>
 
-            {/* Hover ile açılan detay listesi */}
             <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
               <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Station Statuses</div>
-              <div className="flex flex-col gap-1.5">
-                {sensors.map(sensor => (
+              <TopTenList 
+                items={sensors} 
+                renderItem={(sensor) => (
                   <div key={sensor.id} className="flex justify-between items-center text-sm">
                     <span className="text-slate-600 font-medium">
-                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: SENSOR_COLORS[sensor.id] }}></span>
+                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: sensorColors[sensor.id] }}></span>
                       {sensor.id}
                     </span>
                     <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${STATUS_BADGE_STYLES[sensor.status]}`}>
                       {sensor.status === 'normal' ? 'Active' : sensor.status}
                     </span>
                   </div>
-                ))}
-              </div>
+                )}
+              />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          {/* Reference Flow Card + Hover Dropdown */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group cursor-help transition-all hover:border-teal-300 hover:shadow-md">
             <h3 className="text-slate-500 text-sm font-medium mb-1">
               Reference Flow ({summaryMetrics.referenceSensorId})
             </h3>
@@ -355,6 +405,24 @@ const hydropowerData = useMemo(() => {
                 {summaryMetrics.terminalOutflowLps.toFixed(1)} L/s
               </span>
             </p>
+
+            <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
+              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Current Flow Rates (L/s)</div>
+              <TopTenList 
+                items={sensors} 
+                renderItem={(sensor) => (
+                  <div key={sensor.id} className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 font-medium truncate pr-2 max-w-[120px]" title={sensor.name}>
+                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: sensorColors[sensor.id] }}></span>
+                      {sensor.id} ({sensor.name})
+                    </span>
+                    <span className="font-bold text-slate-800 shrink-0">
+                      {Number(sensor.current?.flowRateLps || 0).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              />
+            </div>
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -399,7 +467,9 @@ const hydropowerData = useMemo(() => {
                   onChange={(e) => setSelectedSensorId(e.target.value)}
                   className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-slate-700 font-medium"
                 >
-                  <option value="ALL">All Stations (S01–S04)</option>
+                  <option value="ALL">
+                    All Stations {sensors.length > 0 ? `(${sensors[0].id}–${sensors[sensors.length - 1].id})` : ''}
+                  </option>
                   {sensors.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.id} — {s.name}
@@ -432,8 +502,9 @@ const hydropowerData = useMemo(() => {
                 viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                 className="w-full h-full max-h-[290px] overflow-visible"
               >
-                {[0, 3, 6, 9, 12, 15].map((tickVal) => {
-                  const y = padTop + innerHeight - (tickVal / maxFlowY) * innerHeight;
+                {/* Dinamik eksen çizgileri (ticks) */}
+                {dynamicTicks.map((tickVal) => {
+                  const y = padTop + innerHeight - (tickVal / dynamicMaxFlowY) * innerHeight;
                   return (
                     <g key={tickVal}>
                       <line x1={padLeft} y1={y} x2={chartWidth - padRight} y2={y} stroke="#e2e8f0" strokeDasharray="3 3" />
@@ -494,7 +565,7 @@ const hydropowerData = useMemo(() => {
               <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-slate-200/80 text-xs">
                 {visibleSensors.map((s) => (
                   <div key={s.id} className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: SENSOR_COLORS[s.id] || '#0f766e' }} />
+                    <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: sensorColors[s.id] || '#0f766e' }} />
                     <span className="font-medium text-slate-700">{s.id} ({s.name}):</span>
                     <span className="font-bold text-slate-900">{s.current.flowRateLps.toFixed(2)} L/s</span>
                   </div>
