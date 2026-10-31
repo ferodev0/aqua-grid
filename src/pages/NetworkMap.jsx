@@ -143,23 +143,34 @@ export function NetworkMap() {
         for (let i = 0; i < path.length - 1; i++) {
           const p1 = path[i];
           const p2 = path[i + 1];
-          const x = lng - p1[1];
-          const y = lat - p1[0];
-          const dx = p2[1] - p1[1];
-          const dy = p2[0] - p1[0];
+          // p1, p2 are {lat, lng} objects
+          const p1Lat = p1.lat;
+          const p1Lng = p1.lng;
+          const p2Lat = p2.lat;
+          const p2Lng = p2.lng;
+          
+          // Project click point onto line segment
+          const x = lng - p1Lng;
+          const y = lat - p1Lat;
+          const dx = p2Lng - p1Lng;
+          const dy = p2Lat - p1Lat;
           const lenSq = dx * dx + dy * dy;
+          
           let t = (x * dx + y * dy) / lenSq;
           t = Math.max(0, Math.min(1, t));
-          const projLat = p1[0] + t * dy;
-          const projLng = p1[1] + t * dx;
+          
+          const projLat = p1Lat + t * dy;
+          const projLng = p1Lng + t * dx;
           const dist = Math.sqrt((lat - projLat) ** 2 + (lng - projLng) ** 2);
+          
           if (dist < minDist) {
             minDist = dist;
             closestPoint = [projLat, projLng];
           }
         }
 
-        if (minDist < 0.005 && closestPoint) {
+        // Increased tolerance to ~0.02 degrees (~2km) for easier clicking
+        if (minDist < 0.02 && closestPoint) {
           const newSensor = {
             id: uuidv4(),
             name: `Sensor ${sensors.length + 1}`,
@@ -419,13 +430,13 @@ export function NetworkMap() {
                 const arrowIdx = Math.floor(path.length * 0.3);
                 const arrowStart = path[arrowIdx];
                 const arrowEnd = path[Math.min(arrowIdx + 1, path.length - 1)];
-                const dx = arrowEnd[0] - arrowStart[0];
-                const dy = arrowEnd[1] - arrowStart[1];
+                const dx = arrowEnd.lng - arrowStart.lng;
+                const dy = arrowEnd.lat - arrowStart.lat;
                 const angle = Math.atan2(dy, dx) * 180 / Math.PI;
                 return (
                   <div key={segment.id}>
                     <Polyline
-                      positions={[arrowStart, arrowEnd]}
+                      positions={[[arrowStart.lat, arrowStart.lng], [arrowEnd.lat, arrowEnd.lng]]}
                       color="#f97316"
                       weight={4}
                       opacity={1}
@@ -436,7 +447,7 @@ export function NetworkMap() {
                         position: 'absolute',
                         left: 0,
                         top: 0,
-                        transform: `translate(${arrowStart[1] * 100000}px, ${arrowStart[0] * 100000}px) rotate(${angle}deg)`,
+                        transform: `translate(${arrowStart.lng * 100000}px, ${arrowStart.lat * 100000}px) rotate(${angle}deg)`,
                         pointerEvents: 'none',
                       }}
                     >
@@ -454,10 +465,12 @@ export function NetworkMap() {
               if (sensor.channelSegmentId) {
                 const segment = channelSegments.find(s => s.id === sensor.channelSegmentId);
                 if (segment && segment.path.length > 0) {
-                  const [lat, lng] = sensor.location?.lat
+                  // segment.path[0] is {lat, lng} object
+                  const firstPt = segment.path[0];
+                  const useLocation = sensor.location?.lat;
+                  coords = useLocation 
                     ? [sensor.location.lat, sensor.location.lng]
-                    : segment.path[0];
-                  coords = [lat, lng];
+                    : [firstPt.lat, firstPt.lng];
                 } else {
                   coords = sensorCoords[sensor.id];
                 }
