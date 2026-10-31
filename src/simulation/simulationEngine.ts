@@ -1,5 +1,5 @@
 import { deriveSensorStatus, evaluateNetworkAlerts } from "./alertRules";
-import {
+import type {
   AlertThresholds,
   AquaAlert,
   ChannelSegment,
