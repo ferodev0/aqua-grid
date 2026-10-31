@@ -1,11 +1,17 @@
-import { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  Fragment,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MapContainer,
   TileLayer,
   CircleMarker,
   Polyline,
-  Popup,
   Tooltip,
   useMap,
 } from 'react-leaflet';
@@ -28,13 +34,6 @@ const STATUS_MARKER_COLORS = {
   warning: '#f59e0b', // amber-500 (Amber)
   critical: '#ef4444', // red-500 (Red)
   offline: '#64748b', // slate-500 (Grey)
-};
-
-const FALLBACK_SENSOR_COORDS = {
-  S01: [35.1065, 32.8452],
-  S02: [35.1118, 32.8498],
-  S03: [35.1174, 32.8546],
-  S04: [35.1232, 32.8595],
 };
 
 /**
@@ -87,9 +86,6 @@ function getSensorCoords(sensor, channelSegments) {
     sensor.location?.lng !== undefined
   ) {
     return [sensor.location.lat, sensor.location.lng];
-  }
-  if (FALLBACK_SENSOR_COORDS[sensor.id]) {
-    return FALLBACK_SENSOR_COORDS[sensor.id];
   }
   const seg = channelSegments.find((s) => s.id === sensor.channelSegmentId);
   if (seg && seg.path.length > 0) {
@@ -162,6 +158,43 @@ function MapClickHandler({ mode, onMapClick }) {
   return null;
 }
 
+/**
+ * Clears sensor/segment selection when the user presses on empty map chrome
+ * (tiles, etc.). Uses capture-phase DOM events so it is not affected by
+ * Leaflet layer/map click ordering quirks.
+ */
+function MapBackgroundDeselect({ enabled, onDeselect }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !enabled) return undefined;
+    const container = map.getContainer();
+
+    const onPointerDown = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      // Keep selection when interacting with markers, lines, tooltips, or map chrome.
+      if (
+        target.closest(
+          '.leaflet-overlay-pane .leaflet-interactive, .leaflet-marker-icon, .leaflet-tooltip, .leaflet-popup, .leaflet-control'
+        )
+      ) {
+        return;
+      }
+
+      onDeselect();
+    };
+
+    container.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      container.removeEventListener('pointerdown', onPointerDown, true);
+    };
+  }, [map, enabled, onDeselect]);
+
+  return null;
+}
+
 function MapViewportController({ mode, flyTarget, resetCounter }) {
   const map = useMap();
 
@@ -186,6 +219,54 @@ function MapViewportController({ mode, flyTarget, resetCounter }) {
       map.flyTo(LEFKE_CENTER, DEFAULT_ZOOM, { duration: 0.6 });
     }
   }, [map, resetCounter]);
+
+  return null;
+}
+
+/**
+ * Fits viewport once when sensor/channel geometry changes.
+ * Skips telemetry-only ticks so manual zoom is not reset.
+ */
+function FitBoundsToNetwork({ sensors, channelSegments }) {
+  const map = useMap();
+  const lastFittedKeyRef = useRef(null);
+
+  const geometryKey = useMemo(() => {
+    const sensorPart = sensors
+      .map((s) => {
+        const [lat, lng] = getSensorCoords(s, channelSegments);
+        return `${s.id}:${lat},${lng}`;
+      })
+      .join('|');
+    const segPart = channelSegments
+      .map(
+        (seg) =>
+          `${seg.id}:${(seg.path || [])
+            .map((p) => `${p.lat},${p.lng}`)
+            .join(';')}`
+      )
+      .join('|');
+    return `${sensorPart}#${segPart}`;
+  }, [sensors, channelSegments]);
+
+  useEffect(() => {
+    if (lastFittedKeyRef.current === geometryKey) return;
+    lastFittedKeyRef.current = geometryKey;
+
+    const points = [];
+    sensors.forEach((s) => {
+      points.push(getSensorCoords(s, channelSegments));
+    });
+    channelSegments.forEach((seg) => {
+      (seg.path || []).forEach((p) => points.push([p.lat, p.lng]));
+    });
+    if (points.length === 0) return;
+    if (points.length === 1) {
+      map.setView(points[0], DEFAULT_ZOOM);
+      return;
+    }
+    map.fitBounds(points, { padding: [48, 48], maxZoom: 16 });
+  }, [map, geometryKey, sensors, channelSegments]);
 
   return null;
 }
@@ -431,7 +512,6 @@ export function NetworkMap({ title }) {
     language,
     t,
     tSensorName,
-    tSensorLocation,
     tSegmentName,
     tVillage,
     tArea,
@@ -456,13 +536,13 @@ export function NetworkMap({ title }) {
   // Map view & interaction state
   const [viewType, setViewType] = useState('map'); // 'map' | 'schematic'
   const [mode, setMode] = useState('view'); // 'view' | 'place' | 'draw'
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [panelTab, setPanelTab] = useState('inspect'); // 'inspect' | 'add' | 'network'
+  const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
   const [showCandidatePoints, setShowCandidatePoints] = useState(true);
 
   // Selection state (stores IDs so data is always read live from simulation)
-  const [selectedSensorId, setSelectedSensorId] = useState('S01');
+  const [selectedSensorId, setSelectedSensorId] = useState(null);
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [flyTarget, setFlyTarget] = useState(null);
   const [resetViewCounter, setResetViewCounter] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -497,6 +577,26 @@ export function NetworkMap({ title }) {
     () => channelSegments.find((s) => s.id === selectedSegmentId) ?? null,
     [channelSegments, selectedSegmentId]
   );
+
+  const selectedCandidate = useMemo(
+    () => CANDIDATE_POINTS.find((pt) => pt.id === selectedCandidateId) ?? null,
+    [selectedCandidateId]
+  );
+
+  const selectedCandidateEstimate = useMemo(() => {
+    if (!selectedCandidate) return null;
+    const refSensor =
+      sensors.find((s) => s.id === selectedCandidate.referenceSensorId) ??
+      sensors[0];
+    return {
+      refSensor,
+      estimate: estimateHydropower({
+        flowRateLps: refSensor?.current.flowRateLps ?? 10,
+        netHeadM: selectedCandidate.headM,
+        efficiency: selectedCandidate.efficiency,
+      }),
+    };
+  }, [selectedCandidate, sensors, estimateHydropower]);
 
   const buildSensorFormValues = useCallback(
     (sensor) => {
@@ -537,12 +637,19 @@ export function NetworkMap({ title }) {
     buildSensorFormValues(sensors[0])
   );
 
+  const openEditPanel = useCallback(() => {
+    setIsEditPanelOpen(true);
+  }, []);
+
+  const closeEditPanel = useCallback(() => {
+    setIsEditPanelOpen(false);
+  }, []);
+
   const handleSelectSensor = useCallback(
     (sensorId, shouldFly = false, sensorOverride = null) => {
       setSelectedSensorId(sensorId);
       setSelectedSegmentId(null);
-      setPanelTab('inspect');
-      setIsRightPanelOpen(true);
+      setSelectedCandidateId(null);
       setConfirmDeleteId(null);
       const targetSensor =
         sensorOverride || sensors.find((s) => s.id === sensorId);
@@ -559,9 +666,24 @@ export function NetworkMap({ title }) {
   const handleSelectSegment = useCallback((segmentId) => {
     setSelectedSegmentId(segmentId);
     setSelectedSensorId(null);
-    setPanelTab('inspect');
-    setIsRightPanelOpen(true);
+    setSelectedCandidateId(null);
     setConfirmDeleteId(null);
+  }, []);
+
+  const handleSelectCandidate = useCallback((candidateId) => {
+    setSelectedCandidateId(candidateId);
+    setSelectedSensorId(null);
+    setSelectedSegmentId(null);
+    setConfirmDeleteId(null);
+    setIsEditPanelOpen(false);
+  }, []);
+
+  const clearMapSelection = useCallback(() => {
+    setSelectedSensorId(null);
+    setSelectedSegmentId(null);
+    setSelectedCandidateId(null);
+    setConfirmDeleteId(null);
+    setIsEditPanelOpen(false);
   }, []);
 
   // Map click handler for 'place' (add virtual sensor) and 'draw' (draw channel segment)
@@ -787,48 +909,6 @@ export function NetworkMap({ title }) {
     setMode('view');
   }, []);
 
-  const handleAddSensorSubmit = (event) => {
-    event.preventDefault();
-    const seg = channelSegments.find(
-      (s) => s.id === newSensorForm.channelSegmentId
-    );
-    const village = newSensorForm.village || seg?.village || 'Lefke';
-    const area =
-      newSensorForm.area.trim() ||
-      seg?.area ||
-      KNOWN_AREAS_BY_VILLAGE[village]?.[0] ||
-      'Upper Valley Intake';
-
-    const created = addSensor({
-      name:
-        newSensorForm.name.trim() ||
-        `${tVillage(village)} S0${sensors.length + 1}`,
-      channelSegmentId: newSensorForm.channelSegmentId || 'SEG-01',
-      village,
-      area,
-      location: {
-        lat: Number(newSensorForm.lat) || 35.114,
-        lng: Number(newSensorForm.lng) || 32.852,
-        label:
-          newSensorForm.label.trim() ||
-          `${tArea(area)} (Illustrative)`,
-        village,
-        area,
-      },
-      baseline: {
-        flowRateLps: Math.max(0.5, Number(newSensorForm.flowRateLps) || 8.0),
-        waterLevelM: Math.max(0.05, Number(newSensorForm.waterLevelM) || 0.32),
-      },
-    });
-
-    setNewSensorForm((prev) => ({
-      ...prev,
-      name: '',
-      label: '',
-    }));
-    handleSelectSensor(created.id, true, created);
-  };
-
   const handleSaveSensorEdits = (event) => {
     event.preventDefault();
     if (!selectedSensor) return;
@@ -859,25 +939,6 @@ export function NetworkMap({ title }) {
         ),
       },
     });
-  };
-
-  const handleSegmentChangeInAddForm = (segmentId) => {
-    const seg = channelSegments.find((s) => s.id === segmentId);
-    let midLat = newSensorForm.lat;
-    let midLng = newSensorForm.lng;
-    if (seg && seg.path.length > 0) {
-      const mid = seg.path[Math.floor(seg.path.length / 2)];
-      midLat = String(Number((mid.lat + 0.0006).toFixed(5)));
-      midLng = String(Number((mid.lng + 0.0006).toFixed(5)));
-    }
-    setNewSensorForm((prev) => ({
-      ...prev,
-      channelSegmentId: segmentId,
-      village: seg?.village || prev.village,
-      area: seg?.area || prev.area,
-      lat: midLat,
-      lng: midLng,
-    }));
   };
 
   return (
@@ -975,43 +1036,22 @@ export function NetworkMap({ title }) {
               <button
                 type="button"
                 onClick={() => {
-                  setMode(mode === 'place' ? 'view' : 'place');
-                  setPanelTab('add');
-                  setIsRightPanelOpen(true);
-                }}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  mode === 'place'
-                    ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
-                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                }`}
-                title={t('map.placeSensorTooltip')}
-              >
-                {mode === 'place'
-                  ? t('map.clickToPlaceBtn')
-                  : t('map.placeVirtualSensorBtn')}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (mode === 'draw') {
-                    handleCancelDrawing();
-                  } else {
-                    setMode('draw');
+                  if (mode === 'view') {
                     setChannelPoints([]);
                     setBranchPoint(null);
+                    setMode('place');
+                  } else {
+                    handleCancelDrawing();
                   }
                 }}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  mode === 'draw'
-                    ? 'border-amber-600 bg-amber-600 text-white shadow-sm'
+                  mode !== 'view'
+                    ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
                     : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                 }`}
-                title={t('map.drawChannelTooltip')}
+                title={t('map.editorTooltip')}
               >
-                {mode === 'draw'
-                  ? t('map.drawingChannelBtn')
-                  : t('map.drawChannelBtn')}
+                {mode !== 'view' ? t('map.editorActiveBtn') : t('map.editorBtn')}
               </button>
 
               <button
@@ -1025,59 +1065,81 @@ export function NetworkMap({ title }) {
             </>
           )}
 
-          <button
-            type="button"
-            onClick={() => setIsRightPanelOpen((open) => !open)}
-            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-          >
-            {isRightPanelOpen
-              ? t('map.hideEditPanelBtn')
-              : t('map.openEditPanelBtn')}
-          </button>
         </div>
       </div>
 
-      {/* Active Drawing / Placement Instruction Banner */}
+      {/* Add Editor banner: choose sensor or channel, then click the map */}
       {mode !== 'view' && viewType === 'map' && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-teal-300 bg-teal-50 px-4 py-2 text-xs text-teal-900">
-          {mode === 'place' ? (
-            <div className="flex items-center gap-2 font-medium">
-              <span className="inline-block h-2.5 w-2.5 animate-ping rounded-full bg-teal-600" />
-              <span>
-                <strong>{t('map.placeModeTitle')}</strong>{' '}
-                {t('map.placeModeDesc')}
-              </span>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-teal-300 bg-teal-50 px-4 py-2.5 text-xs text-teal-900">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+            <div className="flex rounded-lg border border-teal-200 bg-white/80 p-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setChannelPoints([]);
+                  setBranchPoint(null);
+                  setMode('place');
+                }}
+                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                  mode === 'place'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-teal-800 hover:bg-teal-100'
+                }`}
+              >
+                {t('map.editorAddSensor')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChannelPoints([]);
+                  setBranchPoint(null);
+                  setMode('draw');
+                }}
+                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                  mode === 'draw'
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'text-teal-800 hover:bg-teal-100'
+                }`}
+              >
+                {t('map.editorAddChannel')}
+              </button>
             </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-3 font-medium">
-              <span>
-                <strong>{t('map.drawModeTitle')}</strong>{' '}
-                {t('map.drawModeDesc', { count: channelPoints.length })}{' '}
-                {branchPoint &&
-                  t('map.branchingNotice', {
-                    id: branchPoint.parentSegmentId,
-                    pct: Math.round(branchPoint.flowToBranch * 100),
-                  })}
-              </span>
-              <input
-                type="text"
-                value={newSegmentName}
-                onChange={(e) => setNewSegmentName(e.target.value)}
-                placeholder={t('map.segmentNamePlaceholder')}
-                className="rounded border border-teal-300 bg-white px-2 py-0.5 text-xs text-slate-800"
-              />
-              <label className="flex items-center gap-1 text-[11px]">
+
+            {mode === 'place' ? (
+              <div className="flex items-center gap-2 font-medium">
+                <span className="inline-block h-2.5 w-2.5 animate-ping rounded-full bg-teal-600" />
+                <span>{t('map.placeModeDesc')}</span>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3 font-medium">
+                <span>
+                  {t('map.drawModeDesc', { count: channelPoints.length })}{' '}
+                  {branchPoint &&
+                    t('map.branchingNotice', {
+                      id: branchPoint.parentSegmentId,
+                      pct: Math.round(branchPoint.flowToBranch * 100),
+                    })}
+                </span>
                 <input
-                  type="checkbox"
-                  checked={autoCreateSegmentSensors}
-                  onChange={(e) =>
-                    setAutoCreateSegmentSensors(e.target.checked)
-                  }
+                  type="text"
+                  value={newSegmentName}
+                  onChange={(e) => setNewSegmentName(e.target.value)}
+                  placeholder={t('map.segmentNamePlaceholder')}
+                  className="rounded border border-teal-300 bg-white px-2 py-0.5 text-xs text-slate-800"
                 />
-                {t('map.autoAddSensorsLabel')}
-              </label>
-            </div>
-          )}
+                <label className="flex items-center gap-1 text-[11px]">
+                  <input
+                    type="checkbox"
+                    checked={autoCreateSegmentSensors}
+                    onChange={(e) =>
+                      setAutoCreateSegmentSensors(e.target.checked)
+                    }
+                  />
+                  {t('map.autoAddSensorsLabel')}
+                </label>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             {mode === 'draw' && channelPoints.length >= 2 && (
@@ -1100,10 +1162,8 @@ export function NetworkMap({ title }) {
         </div>
       )}
 
-      {/* Main Content Split: Map Area (Left/Center) + Collapsible Edit Panel (Right) */}
-      <div className="flex min-h-[560px] flex-1 flex-col gap-4 lg:flex-row">
-        {/* Central Map / Schematic Container */}
-        <div className="relative flex min-h-[540px] flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* Map Area — edit panel opens as an overlay popup */}
+      <div className="relative flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {viewType === 'schematic' ? (
             <SchematicNetworkDiagram
               sensors={sensors}
@@ -1134,10 +1194,18 @@ export function NetworkMap({ title }) {
               />
 
               <MapClickHandler mode={mode} onMapClick={handleMapClick} />
+              <MapBackgroundDeselect
+                enabled={mode === 'view'}
+                onDeselect={clearMapSelection}
+              />
               <MapViewportController
                 mode={mode}
                 flyTarget={flyTarget}
                 resetCounter={resetViewCounter}
+              />
+              <FitBoundsToNetwork
+                sensors={sensors}
+                channelSegments={channelSegments}
               />
 
               {/* Channel Segments (SEG-01..SEG-04 + Custom) */}
@@ -1208,81 +1276,29 @@ export function NetworkMap({ title }) {
               {/* Candidate Hydropower & Pool Points (Spec Section 7.2) */}
               {showCandidatePoints &&
                 CANDIDATE_POINTS.map((pt) => {
-                  const refSensor =
-                    sensors.find((s) => s.id === pt.referenceSensorId) ??
-                    sensors[0];
-                  const estimate = estimateHydropower({
-                    flowRateLps: refSensor?.current.flowRateLps ?? 10,
-                    netHeadM: pt.headM,
-                    efficiency: pt.efficiency,
-                  });
-
+                  const isSelected = pt.id === selectedCandidateId;
                   return (
                     <CircleMarker
                       key={pt.id}
                       center={[pt.lat, pt.lng]}
-                      radius={7}
+                      radius={isSelected ? 10 : 7}
                       pathOptions={{
                         fillColor:
                           pt.type === 'hydropower' ? '#0284c7' : '#8b5cf6',
                         fillOpacity: 0.9,
-                        color: isDark ? '#0f172a' : '#ffffff',
-                        weight: 2,
+                        color: isSelected
+                          ? isDark
+                            ? '#2dd4bf'
+                            : '#0f172a'
+                          : isDark
+                          ? '#0f172a'
+                          : '#ffffff',
+                        weight: isSelected ? 3.5 : 2,
                       }}
-                    >
-                      <Popup key={`cand-popup-${pt.id}-${resolvedTheme}`}>
-                        <div
-                          className={`min-w-[210px] p-1 text-xs ${
-                            isDark ? 'text-slate-100' : 'text-slate-800'
-                          }`}
-                        >
-                          <span className="inline-block rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-sky-800 dark:bg-sky-950/70 dark:text-sky-300">
-                            {pt.type === 'hydropower'
-                              ? t('map.hydroCandidateBadge')
-                              : t('map.poolCandidateBadge')}
-                          </span>
-                          <h4 className="mt-1.5 font-bold text-slate-800 dark:text-slate-100">
-                            {t(pt.nameKey)}
-                          </h4>
-                          <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
-                            {t(pt.noteKey)}
-                          </p>
-                          <div className="mt-2 space-y-1 border-t border-slate-200 pt-2 text-[11px] dark:border-slate-700">
-                            <div className="flex justify-between">
-                              <span className="text-slate-500 dark:text-slate-400">
-                                {t('map.refFlowLabel', {
-                                  id: refSensor?.id ?? 'S01',
-                                })}
-                              </span>
-                              <strong className="font-mono text-slate-800 dark:text-slate-100">
-                                {(refSensor?.current.flowRateLps ?? 0).toFixed(
-                                  2
-                                )}{' '}
-                                L/s
-                              </strong>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-slate-500 dark:text-slate-400">
-                                {t('map.assumedHeadLabel')}
-                              </span>
-                              <strong className="font-mono text-slate-800 dark:text-slate-100">
-                                {pt.headM} m ({Math.round(pt.efficiency * 100)}%{' '}
-                                {t('map.effShort')})
-                              </strong>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-slate-500 dark:text-slate-400">
-                                {t('map.theoreticalPotentialLabel')}
-                              </span>
-                              <strong className="font-mono text-teal-700 dark:text-teal-400">
-                                ~{estimate.powerWatts.toFixed(0)} W (
-                                {estimate.dailyEnergyKwh.toFixed(2)} kWh/d)
-                              </strong>
-                            </div>
-                          </div>
-                        </div>
-                      </Popup>
-                    </CircleMarker>
+                      eventHandlers={{
+                        click: () => handleSelectCandidate(pt.id),
+                      }}
+                    />
                   );
                 })}
 
@@ -1320,8 +1336,6 @@ export function NetworkMap({ title }) {
                   STATUS_MARKER_COLORS[sensor.status] ||
                   STATUS_MARKER_COLORS.normal;
                 const isSelected = sensor.id === selectedSensorId;
-                const localizedName = tSensorName(sensor);
-                const localizedLocation = tSensorLocation(sensor);
 
                 return (
                   <CircleMarker
@@ -1346,114 +1360,22 @@ export function NetworkMap({ title }) {
                   >
                     <Tooltip
                       permanent
+                      interactive={false}
                       direction="top"
                       offset={[0, -10]}
                       className="font-mono text-[10px] font-bold"
                     >
                       {sensor.id}
                     </Tooltip>
-
-                    {/* Quick-Information Pop-Up on Marker Click (Spec Section 7.2) */}
-                    <Popup key={`sensor-popup-${sensor.id}-${resolvedTheme}`}>
-                      <div
-                        className={`min-w-[230px] p-1 ${
-                          isDark ? 'text-slate-100' : 'text-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <span className="font-mono text-[11px] font-bold text-teal-700 dark:text-teal-400">
-                              {t('dashboard.stationTag', { id: sensor.id })}
-                            </span>
-                            <h3 className="text-sm font-bold leading-snug text-slate-900 dark:text-slate-100">
-                              {localizedName}
-                            </h3>
-                          </div>
-                          <StatusBadge status={sensor.status} size="sm" />
-                        </div>
-
-                        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-300">
-                          {localizedLocation}
-                        </p>
-                        <p className="text-[10px] font-medium text-slate-400">
-                          {tVillage(sensor.village || 'Lefke')} ·{' '}
-                          {tArea(sensor.area || '')}
-                        </p>
-
-                        <div className="mt-2.5 space-y-1.5 border-t border-slate-200 pt-2 text-xs dark:border-slate-700">
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-500 dark:text-slate-400">
-                              {t('dashboard.flowLabel')}
-                            </span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                              {sensor.current.flowRateLps.toFixed(2)} L/s{' '}
-                              <span className="text-[10px] font-normal text-slate-400">
-                                (
-                                {t('map.baseShort', {
-                                  val: sensor.baseline.flowRateLps.toFixed(1),
-                                })}
-                                )
-                              </span>
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-500 dark:text-slate-400">
-                              {t('dashboard.levelLabel')}
-                            </span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                              {sensor.current.waterLevelM.toFixed(3)} m{' '}
-                              <span className="text-[10px] font-normal text-slate-400">
-                                (
-                                {t('map.baseShort', {
-                                  val: sensor.baseline.waterLevelM.toFixed(2),
-                                })}
-                                )
-                              </span>
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-slate-500 dark:text-slate-400">
-                              {t('map.updatedLabel')}
-                            </span>
-                            <span className="text-slate-600 dark:text-slate-300">
-                              {formatTimeAgo(
-                                sensor.current.updatedAt,
-                                t,
-                                language
-                              )}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/sensors/${sensor.id}`)}
-                            className="flex-1 rounded-md bg-teal-600 px-2.5 py-1.5 text-center text-xs font-semibold text-white hover:bg-teal-700"
-                          >
-                            {t('map.openDetailsBtn')}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleSelectSensor(sensor.id, false);
-                            }}
-                            className="rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-                          >
-                            {t('map.editBtn')}
-                          </button>
-                        </div>
-                      </div>
-                    </Popup>
                   </CircleMarker>
                 );
               })}
             </MapContainer>
           )}
 
-          {/* Floating Quick-Info Card for Selected Sensor (Bottom-Left of Map) */}
+          {/* Floating Quick-Info Card (Top-Right of Map) */}
           {selectedSensor && (
-            <div className="pointer-events-auto absolute bottom-3 left-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+            <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -1469,7 +1391,31 @@ export function NetworkMap({ title }) {
                     {tSensorName(selectedSensor)}
                   </h4>
                 </div>
-                <StatusBadge status={selectedSensor.status} size="sm" />
+                <div className="flex items-start gap-2">
+                  <StatusBadge status={selectedSensor.status} size="sm" />
+                  <button
+                    type="button"
+                    onClick={clearMapSelection}
+                    className="rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    aria-label={t('map.closeCard')}
+                    title={t('map.closeCard')}
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-900/70">
@@ -1491,7 +1437,7 @@ export function NetworkMap({ title }) {
                 </div>
               </div>
 
-              <div className="mt-2.5 flex items-center justify-between gap-2">
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[10px] text-slate-400">
                   {t('map.updatedAgo', {
                     time: formatTimeAgo(
@@ -1501,13 +1447,160 @@ export function NetworkMap({ title }) {
                     ),
                   })}
                 </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={openEditPanel}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  >
+                    {t('map.editBtn')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/sensors/${selectedSensor.id}`)}
+                    className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+                  >
+                    {t('map.sensorDetailsBtn')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedSegment && !selectedSensor && !selectedCandidate && (
+            <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="font-mono text-xs font-bold text-teal-600 dark:text-teal-400">
+                    {selectedSegment.id}
+                  </span>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {tSegmentName(selectedSegment.id, selectedSegment.name)}
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                    {tVillage(selectedSegment.village || 'Lefke')} ·{' '}
+                    {tArea(selectedSegment.area || '')}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => navigate(`/sensors/${selectedSensor.id}`)}
-                  className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+                  onClick={clearMapSelection}
+                  className="shrink-0 rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  aria-label={t('map.closeCard')}
+                  title={t('map.closeCard')}
                 >
-                  {t('map.sensorDetailsBtn')}
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
                 </button>
+              </div>
+              <div className="mt-2.5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={openEditPanel}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                >
+                  {t('map.editBtn')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedCandidate && selectedCandidateEstimate && (
+            <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span
+                    className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                      selectedCandidate.type === 'hydropower'
+                        ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300'
+                        : 'bg-violet-100 text-violet-800 dark:bg-violet-950/70 dark:text-violet-300'
+                    }`}
+                  >
+                    {selectedCandidate.type === 'hydropower'
+                      ? t('map.hydroCandidateBadge')
+                      : t('map.poolCandidateBadge')}
+                  </span>
+                  <h4 className="mt-1.5 text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {t(selectedCandidate.nameKey)}
+                  </h4>
+                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                    {t(selectedCandidate.noteKey)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearMapSelection}
+                  className="shrink-0 rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  aria-label={t('map.closeCard')}
+                  title={t('map.closeCard')}
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mt-2 space-y-1.5 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-900/70">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {t('map.refFlowLabel', {
+                      id: selectedCandidateEstimate.refSensor?.id ?? 'S01',
+                    })}
+                  </span>
+                  <strong className="font-mono text-slate-800 dark:text-slate-100">
+                    {(
+                      selectedCandidateEstimate.refSensor?.current.flowRateLps ??
+                      0
+                    ).toFixed(2)}{' '}
+                    L/s
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {t('map.assumedHeadLabel')}
+                  </span>
+                  <strong className="font-mono text-slate-800 dark:text-slate-100">
+                    {selectedCandidate.headM} m (
+                    {Math.round(selectedCandidate.efficiency * 100)}%{' '}
+                    {t('map.effShort')})
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {t('map.theoreticalPotentialLabel')}
+                  </span>
+                  <strong className="font-mono text-teal-700 dark:text-teal-400">
+                    ~{selectedCandidateEstimate.estimate.powerWatts.toFixed(0)} W
+                    (
+                    {selectedCandidateEstimate.estimate.dailyEnergyKwh.toFixed(
+                      2
+                    )}{' '}
+                    kWh/d)
+                  </strong>
+                </div>
               </div>
             </div>
           )}
@@ -1549,109 +1642,88 @@ export function NetworkMap({ title }) {
               {t('map.legendFooter')}
             </div>
           </div>
-        </div>
 
-        {/* Right-Side Collapsible Edit & Configuration Panel (Spec Section 7.2) */}
-        {isRightPanelOpen && (
-          <aside className="flex w-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm lg:w-96 lg:shrink-0">
-            {/* Prototype Disclaimer Header */}
-            <div className="border-b border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-800">
-                  {t('map.panelTitle')}
-                </h3>
-                <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">
-                  {t('map.prototypeStateBadge')}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                {t('map.panelDisclaimer')}
-              </p>
-
-              {/* Panel Navigation Tabs */}
-              <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setPanelTab('inspect')}
-                  className={`rounded-md py-1.5 font-semibold transition-colors ${
-                    panelTab === 'inspect'
-                      ? 'bg-white text-teal-700 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+        {/* Edit panel popup overlay (default hidden; opens via Edit) */}
+        {isEditPanelOpen && (
+          <div className="absolute inset-0 z-[600] flex items-center justify-center bg-slate-900/25 p-2 backdrop-blur-[1px]">
+            <button
+              type="button"
+              className="absolute inset-0 cursor-default"
+              aria-label={t('map.closeCard')}
+              onClick={closeEditPanel}
+            />
+            <aside className="relative z-[1] flex max-h-[calc(100%-0.75rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                {t('map.panelTitle')}
+              </h3>
+              <button
+                type="button"
+                onClick={closeEditPanel}
+                className="rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                aria-label={t('map.closeCard')}
+                title={t('map.closeCard')}
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
                 >
-                  {t('map.tabInspect')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPanelTab('add')}
-                  className={`rounded-md py-1.5 font-semibold transition-colors ${
-                    panelTab === 'add'
-                      ? 'bg-white text-teal-700 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {t('map.tabAdd')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPanelTab('network')}
-                  className={`rounded-md py-1.5 font-semibold transition-colors ${
-                    panelTab === 'network'
-                      ? 'bg-white text-teal-700 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {t('map.tabStations', { count: sensors.length })}
-                </button>
-              </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
             </div>
 
-            {/* Tab 1: Inspect & Edit Selected Sensor or Segment */}
-            {panelTab === 'inspect' && (
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="min-h-0 flex-1 overflow-hidden p-3">
                 {selectedSensor ? (
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                      <div>
-                        <span className="font-mono text-xs font-bold text-teal-600">
-                          {t('dashboard.stationTag', {
-                            id: selectedSensor.id,
-                          })}
-                        </span>
-                        <h4 className="text-base font-bold text-slate-800">
-                          {tSensorName(selectedSensor)}
-                        </h4>
-                        <p className="text-xs text-slate-500">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 dark:border-slate-600 dark:bg-slate-800/80">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-mono text-xs font-bold text-teal-600">
+                            {selectedSensor.id}
+                          </span>
+                          <h4 className="truncate text-base font-bold text-slate-800 dark:text-slate-100">
+                            {tSensorName(selectedSensor)}
+                          </h4>
+                        </div>
+                        <p className="truncate text-xs text-slate-500">
                           {tVillage(selectedSensor.village || 'Lefke')} ·{' '}
                           {tArea(selectedSensor.area || '')}
                         </p>
                       </div>
-                      <StatusBadge status={selectedSensor.status} />
+                      <StatusBadge status={selectedSensor.status} size="sm" />
                     </div>
 
-                    {/* Live Simulated Telemetry Snapshot */}
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-lg border border-slate-200 p-2">
-                        <span className="block text-[10px] text-slate-400">
+                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                      <div className="rounded-md border border-slate-200 px-1.5 py-1.5 dark:border-slate-600">
+                        <span className="block text-[11px] uppercase text-slate-400">
                           {t('sensorDetails.flowRate')}
                         </span>
-                        <strong className="font-mono text-sm text-slate-800">
+                        <strong className="font-mono text-xs text-slate-800 dark:text-slate-100">
                           {selectedSensor.current.flowRateLps.toFixed(2)} L/s
                         </strong>
                       </div>
-                      <div className="rounded-lg border border-slate-200 p-2">
-                        <span className="block text-[10px] text-slate-400">
+                      <div className="rounded-md border border-slate-200 px-1.5 py-1.5 dark:border-slate-600">
+                        <span className="block text-[11px] uppercase text-slate-400">
                           {t('sensorDetails.waterLevel')}
                         </span>
-                        <strong className="font-mono text-sm text-slate-800">
+                        <strong className="font-mono text-xs text-slate-800 dark:text-slate-100">
                           {selectedSensor.current.waterLevelM.toFixed(3)} m
                         </strong>
                       </div>
-                      <div className="rounded-lg border border-slate-200 p-2">
-                        <span className="block text-[10px] text-slate-400">
+                      <div className="rounded-md border border-slate-200 px-1.5 py-1.5 dark:border-slate-600">
+                        <span className="block text-[11px] uppercase text-slate-400">
                           {t('map.velocity')}
                         </span>
-                        <strong className="font-mono text-sm text-slate-800">
+                        <strong className="font-mono text-xs text-slate-800 dark:text-slate-100">
                           {(
                             selectedSensor.current.flowVelocityMps ?? 0.7
                           ).toFixed(2)}{' '}
@@ -1660,35 +1732,49 @@ export function NetworkMap({ title }) {
                       </div>
                     </div>
 
-                    {/* Edit Sensor Properties Form */}
                     <form
                       onSubmit={handleSaveSensorEdits}
-                      className="space-y-3 border-t border-slate-200 pt-3 text-xs"
+                      className="space-y-1.5 border-t border-slate-200 pt-2 dark:border-slate-700"
                     >
-                      <div className="font-semibold uppercase tracking-wider text-slate-400">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                         {t('map.editSensorHeading')}
                       </div>
 
-                      <div>
-                        <label className="mb-1 block font-medium text-slate-700">
-                          {t('map.stationDisplayName')}
-                        </label>
-                        <input
-                          type="text"
-                          value={editSensorForm.name}
-                          onChange={(e) =>
-                            setEditSensorForm((prev) => ({
-                              ...prev,
-                              name: e.target.value,
-                            }))
-                          }
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
+                            {t('map.stationDisplayName')}
+                          </label>
+                          <input
+                            type="text"
+                            value={editSensorForm.name}
+                            onChange={(e) =>
+                              setEditSensorForm((prev) => ({
+                                ...prev,
+                                name: e.target.value,
+                              }))
+                            }
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                          />
+                        </div>
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
+                            {t('map.areaLabel')}
+                          </label>
+                          <input
+                            type="text"
+                            value={editSensorForm.area}
+                            onChange={(e) =>
+                              setEditSensorForm((prev) => ({
+                                ...prev,
+                                area: e.target.value,
+                              }))
+                            }
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                          />
+                        </div>
                         <div>
-                          <label className="mb-1 block font-medium text-slate-700">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
                             {t('map.villageLabel')}
                           </label>
                           <select
@@ -1704,7 +1790,7 @@ export function NetworkMap({ title }) {
                                 area: defaultArea,
                               }));
                             }}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                           >
                             {KNOWN_VILLAGES.map((v) => (
                               <option key={v} value={v}>
@@ -1713,9 +1799,8 @@ export function NetworkMap({ title }) {
                             ))}
                           </select>
                         </div>
-
                         <div>
-                          <label className="mb-1 block font-medium text-slate-700">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
                             {t('map.channelSegmentLabel')}
                           </label>
                           <select
@@ -1726,7 +1811,7 @@ export function NetworkMap({ title }) {
                                 channelSegmentId: e.target.value,
                               }))
                             }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                           >
                             {channelSegments.map((seg) => (
                               <option key={seg.id} value={seg.id}>
@@ -1736,28 +1821,8 @@ export function NetworkMap({ title }) {
                             ))}
                           </select>
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="mb-1 block font-medium text-slate-700">
-                          {t('map.areaLabel')}
-                        </label>
-                        <input
-                          type="text"
-                          value={editSensorForm.area}
-                          onChange={(e) =>
-                            setEditSensorForm((prev) => ({
-                              ...prev,
-                              area: e.target.value,
-                            }))
-                          }
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="mb-1 block font-medium text-slate-700">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
                             {t('map.baselineFlowLabel')}
                           </label>
                           <input
@@ -1771,11 +1836,11 @@ export function NetworkMap({ title }) {
                                 flowRateLps: e.target.value,
                               }))
                             }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-slate-800"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                           />
                         </div>
                         <div>
-                          <label className="mb-1 block font-medium text-slate-700">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
                             {t('map.baselineLevelLabel')}
                           </label>
                           <input
@@ -1789,14 +1854,11 @@ export function NetworkMap({ title }) {
                                 waterLevelM: e.target.value,
                               }))
                             }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-slate-800"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                           />
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="mb-1 block font-medium text-slate-700">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
                             {t('map.illustrativeLatLabel')}
                           </label>
                           <input
@@ -1809,11 +1871,11 @@ export function NetworkMap({ title }) {
                                 lat: e.target.value,
                               }))
                             }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-slate-800"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                           />
                         </div>
                         <div>
-                          <label className="mb-1 block font-medium text-slate-700">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-300">
                             {t('map.illustrativeLngLabel')}
                           </label>
                           <input
@@ -1826,22 +1888,22 @@ export function NetworkMap({ title }) {
                                 lng: e.target.value,
                               }))
                             }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-slate-800"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                           />
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 pt-1">
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
                         <button
                           type="submit"
-                          className="flex-1 rounded-lg bg-teal-600 px-3 py-2 font-semibold text-white hover:bg-teal-700"
+                          className="flex-1 rounded-md bg-teal-600 px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-teal-700"
                         >
                           {t('map.saveChangesBtn')}
                         </button>
                         <button
                           type="button"
                           onClick={() => toggleSensorOffline(selectedSensor.id)}
-                          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+                          className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                         >
                           {selectedSensor.status === 'offline'
                             ? t('map.setOnlineBtn')
@@ -1850,14 +1912,13 @@ export function NetworkMap({ title }) {
                       </div>
                     </form>
 
-                    {/* Navigation & Deletion Actions */}
-                    <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-xs">
+                    <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-1.5 dark:border-slate-700">
                       <button
                         type="button"
                         onClick={() =>
                           navigate(`/sensors/${selectedSensor.id}`)
                         }
-                        className="font-semibold text-teal-600 hover:underline"
+                        className="truncate text-xs font-semibold text-teal-600 hover:underline"
                       >
                         {t('map.openFullTelemetryLink', {
                           id: selectedSensor.id,
@@ -1865,9 +1926,9 @@ export function NetworkMap({ title }) {
                       </button>
 
                       {sensors.length > 1 && (
-                        <div>
+                        <div className="shrink-0">
                           {confirmDeleteId === selectedSensor.id ? (
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1880,15 +1941,16 @@ export function NetworkMap({ title }) {
                                   setSelectedSensorId(
                                     remaining[0]?.id ?? null
                                   );
+                                  setIsEditPanelOpen(false);
                                 }}
-                                className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                                className="rounded bg-red-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-red-700"
                               >
                                 {t('map.confirmRemoveBtn')}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setConfirmDeleteId(null)}
-                                className="rounded border border-slate-200 px-2 py-1 text-slate-600"
+                                className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:border-slate-600"
                               >
                                 {t('map.cancelBtn')}
                               </button>
@@ -1899,7 +1961,7 @@ export function NetworkMap({ title }) {
                               onClick={() =>
                                 setConfirmDeleteId(selectedSensor.id)
                               }
-                              className="text-red-600 hover:underline"
+                              className="text-xs text-red-600 hover:underline"
                             >
                               {t('map.removeStationBtn')}
                             </button>
@@ -1909,17 +1971,17 @@ export function NetworkMap({ title }) {
                     </div>
                   </div>
                 ) : selectedSegment ? (
-                  <div className="space-y-4 text-xs">
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="space-y-2 text-sm">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 dark:border-slate-600 dark:bg-slate-800/80">
                       <span className="font-mono text-xs font-bold text-teal-600">
                         {t('map.channelSegmentHeader', {
                           id: selectedSegment.id,
                         })}
                       </span>
-                      <h4 className="mt-0.5 text-base font-bold text-slate-800">
+                      <h4 className="text-base font-bold text-slate-800 dark:text-slate-100">
                         {tSegmentName(selectedSegment.id, selectedSegment.name)}
                       </h4>
-                      <p className="mt-1 text-slate-500">
+                      <p className="text-xs text-slate-500">
                         {tVillage(selectedSegment.village || 'Lefke')} ·{' '}
                         {tArea(selectedSegment.area || '')}
                       </p>
@@ -2028,337 +2090,8 @@ export function NetworkMap({ title }) {
                   </p>
                 )}
               </div>
-            )}
-
-            {/* Tab 2: Add Virtual Simulated Sensor */}
-            {panelTab === 'add' && (
-              <form
-                onSubmit={handleAddSensorSubmit}
-                className="flex-1 space-y-3 overflow-y-auto p-4 text-xs"
-              >
-                <div className="rounded-lg border border-teal-200 bg-teal-50 p-3 text-teal-900">
-                  <div className="font-bold">{t('map.addSensorCardTitle')}</div>
-                  <p className="mt-0.5 text-[11px]">
-                    {t('map.addSensorCardDesc')}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setViewType('map');
-                      setMode(mode === 'place' ? 'view' : 'place');
-                    }}
-                    className={`mt-2 w-full rounded-md px-2.5 py-1.5 font-semibold transition-colors ${
-                      mode === 'place'
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-teal-600 text-white hover:bg-teal-700'
-                    }`}
-                  >
-                    {mode === 'place'
-                      ? t('map.clickMapNowBtn')
-                      : t('map.orClickMapBtn')}
-                  </button>
-                </div>
-
-                <div>
-                  <label className="mb-1 block font-medium text-slate-700">
-                    {t('map.stationDisplayName')}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder={t('map.stationNamePlaceholder', {
-                      id: `S0${sensors.length + 1}`,
-                    })}
-                    value={newSensorForm.name}
-                    onChange={(e) =>
-                      setNewSensorForm((prev) => ({
-                        ...prev,
-                        name: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block font-medium text-slate-700">
-                      {t('map.channelSegmentLabel')}
-                    </label>
-                    <select
-                      value={newSensorForm.channelSegmentId}
-                      onChange={(e) =>
-                        handleSegmentChangeInAddForm(e.target.value)
-                      }
-                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800"
-                    >
-                      {channelSegments.map((seg) => (
-                        <option key={seg.id} value={seg.id}>
-                          {seg.id} ({tVillage(seg.village || 'Lefke')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block font-medium text-slate-700">
-                      {t('map.villageLabel')}
-                    </label>
-                    <select
-                      value={newSensorForm.village}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setNewSensorForm((prev) => ({
-                          ...prev,
-                          village: v,
-                          area:
-                            KNOWN_AREAS_BY_VILLAGE[v]?.[0] || prev.area,
-                        }));
-                      }}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800"
-                    >
-                      {KNOWN_VILLAGES.map((v) => (
-                        <option key={v} value={v}>
-                          {tVillage(v)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1 block font-medium text-slate-700">
-                    {t('map.areaLabel')}
-                  </label>
-                  <input
-                    type="text"
-                    value={newSensorForm.area}
-                    onChange={(e) =>
-                      setNewSensorForm((prev) => ({
-                        ...prev,
-                        area: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block font-medium text-slate-700">
-                      {t('map.baselineFlowLabel')}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0.5"
-                      required
-                      value={newSensorForm.flowRateLps}
-                      onChange={(e) =>
-                        setNewSensorForm((prev) => ({
-                          ...prev,
-                          flowRateLps: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-slate-800"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block font-medium text-slate-700">
-                      {t('map.baselineLevelLabel')}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.05"
-                      required
-                      value={newSensorForm.waterLevelM}
-                      onChange={(e) =>
-                        setNewSensorForm((prev) => ({
-                          ...prev,
-                          waterLevelM: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-slate-800"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block font-medium text-slate-700">
-                      {t('map.illustrativeLatLabel')}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0005"
-                      required
-                      value={newSensorForm.lat}
-                      onChange={(e) =>
-                        setNewSensorForm((prev) => ({
-                          ...prev,
-                          lat: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-slate-800"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block font-medium text-slate-700">
-                      {t('map.illustrativeLngLabel')}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0005"
-                      required
-                      value={newSensorForm.lng}
-                      onChange={(e) =>
-                        setNewSensorForm((prev) => ({
-                          ...prev,
-                          lng: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-slate-800"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full rounded-lg bg-teal-600 px-3 py-2.5 font-semibold text-white shadow-sm hover:bg-teal-700"
-                >
-                  {t('map.submitAddSensorBtn')}
-                </button>
-              </form>
-            )}
-
-            {/* Tab 3: All Simulated Stations & Segments Directory */}
-            {panelTab === 'network' && (
-              <div className="flex-1 space-y-4 overflow-y-auto p-4 text-xs">
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="font-bold uppercase tracking-wider text-slate-400">
-                      {t('map.simulatedStationsHeader', {
-                        count: sensors.length,
-                      })}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPanelTab('add')}
-                      className="font-semibold text-teal-600 hover:underline"
-                    >
-                      {t('map.addNewLink')}
-                    </button>
-                  </div>
-                  <div className="space-y-1.5">
-                    {sensors.map((s) => (
-                      <div
-                        key={s.id}
-                        onClick={() => handleSelectSensor(s.id, true)}
-                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-2.5 transition-colors ${
-                          s.id === selectedSensorId
-                            ? 'border-teal-300 bg-teal-50'
-                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-bold text-teal-600">
-                              {s.id}
-                            </span>
-                            <span className="font-semibold text-slate-800">
-                              {tSensorName(s)}
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-slate-500">
-                            {tVillage(s.village || 'Lefke')} ·{' '}
-                            {s.current.flowRateLps.toFixed(1)} L/s ·{' '}
-                            {s.current.waterLevelM.toFixed(2)} m
-                          </span>
-                        </div>
-                        <StatusBadge status={s.status} size="sm" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-200 pt-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="font-bold uppercase tracking-wider text-slate-400">
-                      {t('map.channelSegmentsHeader', {
-                        count: channelSegments.length,
-                      })}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setViewType('map');
-                        setMode('draw');
-                      }}
-                      className="font-semibold text-teal-600 hover:underline"
-                    >
-                      {t('map.drawChannelLink')}
-                    </button>
-                  </div>
-                  <div className="space-y-1.5">
-                    {channelSegments.map((seg) => (
-                      <div
-                        key={seg.id}
-                        onClick={() => handleSelectSegment(seg.id)}
-                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-2.5 transition-colors ${
-                          seg.id === selectedSegmentId
-                            ? 'border-teal-300 bg-teal-50'
-                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                        }`}
-                      >
-                        <div>
-                          <span className="font-mono font-bold text-teal-600">
-                            {seg.id}
-                          </span>{' '}
-                          <span className="font-medium text-slate-800">
-                            {tSegmentName(seg.id, seg.name)}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-slate-400">
-                          {t('map.ptsShort', { count: seg.path.length })}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {alerts.filter((a) => a.status === 'active').length > 0 && (
-                  <div className="border-t border-slate-200 pt-3">
-                    <span className="mb-2 block font-bold uppercase tracking-wider text-slate-400">
-                      {t('map.activeNetworkAlertsHeader')}
-                    </span>
-                    <div className="space-y-1.5">
-                      {alerts
-                        .filter((a) => a.status === 'active')
-                        .slice(0, 3)
-                        .map((alert) => {
-                          const localizedAlert = tAlert(alert);
-                          return (
-                            <div
-                              key={alert.id}
-                              className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900"
-                            >
-                              <div className="font-bold">
-                                {localizedAlert.title}
-                              </div>
-                              <div className="mt-0.5 opacity-80">
-                                {t('map.stationsLabel')}{' '}
-                                {alert.sensorIds.join(', ')}
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </aside>
+            </aside>
+          </div>
         )}
       </div>
     </AppLayout>
