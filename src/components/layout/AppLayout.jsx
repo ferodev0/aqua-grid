@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useNetwork } from '../../context/NetworkContext';
+import { DemoControls } from '../sensors/DemoControls';
 
 const NAV_ITEMS = [
   {
@@ -66,6 +68,7 @@ const NAV_ITEMS = [
 export function AppLayout({ title, children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { pathname } = useLocation();
+  const { demoBannerText } = useNetwork();
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-800">
@@ -152,13 +155,15 @@ export function AppLayout({ title, children }) {
             );
           })}
         </nav>
+
+        <DemoControls collapsed={!isSidebarOpen} />
       </aside>
 
       <main className="flex flex-1 flex-col overflow-y-auto p-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold text-slate-800">{title}</h2>
           <div className="rounded border border-amber-300 bg-amber-100 px-4 py-1.5 text-sm font-bold tracking-wide text-amber-700 shadow-sm">
-            DEMO MODE — SIMULATED SENSOR DATA
+            {demoBannerText}
           </div>
         </header>
         {children}
