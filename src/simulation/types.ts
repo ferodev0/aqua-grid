@@ -4,10 +4,16 @@ export interface Sensor {
   id: string;
   name: string;
   channelSegmentId: string;
+  /** Village grouping for filtering and regional aggregation (e.g., "Lefke", "Bağlıköy", "Gaziveren") */
+  village: string;
+  /** Specific zone/sub-area within or around the village (e.g., "Upper Valley Intake", "Town Centre Aqueduct") */
+  area: string;
   location: {
     lat?: number;
     lng?: number;
     label: string;
+    village: string;
+    area: string;
     isIllustrative: boolean;
   };
   baseline: {
@@ -28,10 +34,28 @@ export interface Sensor {
 export interface ChannelSegment {
   id: string;
   name: string;
+  village?: string;
+  area?: string;
   upstreamSensorId?: string;
   downstreamSensorId?: string;
   path: Array<{ lat: number; lng: number }>;
   isIllustrative: boolean;
+}
+
+export interface AreaSensorGroup {
+  area: string;
+  village: string;
+  sensors: Sensor[];
+  activeCount: number;
+  attentionCount: number;
+}
+
+export interface VillageSensorGroup {
+  village: string;
+  sensors: Sensor[];
+  areas: AreaSensorGroup[];
+  activeCount: number;
+  attentionCount: number;
 }
 
 export type AlertSeverity = "info" | "warning" | "critical";

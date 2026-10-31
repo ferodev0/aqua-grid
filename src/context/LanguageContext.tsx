@@ -48,6 +48,18 @@ export interface LanguageContextValue {
     id: string;
     location: { label: string };
   }) => string;
+  tSensorVillage: (sensor: {
+    id: string;
+    village?: string;
+    location?: { village?: string };
+  }) => string;
+  tSensorArea: (sensor: {
+    id: string;
+    area?: string;
+    location?: { area?: string };
+  }) => string;
+  tVillage: (villageName: string) => string;
+  tArea: (areaName: string) => string;
   tSegmentName: (segmentId: string, fallbackName?: string) => string;
   tAlert: (alert: AquaAlert) => { title: string; message: string };
 }
@@ -99,6 +111,50 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       const key = `sensor.${sensor.id}.location`;
       const dict = TRANSLATIONS[language] ?? TRANSLATIONS.en;
       return dict[key] ?? sensor.location.label;
+    },
+    [language]
+  );
+
+  const tVillage = useCallback(
+    (villageName: string): string => {
+      const dict = TRANSLATIONS[language] ?? TRANSLATIONS.en;
+      return dict[`village.${villageName}`] ?? villageName;
+    },
+    [language]
+  );
+
+  const tArea = useCallback(
+    (areaName: string): string => {
+      const dict = TRANSLATIONS[language] ?? TRANSLATIONS.en;
+      return dict[`area.${areaName}`] ?? areaName;
+    },
+    [language]
+  );
+
+  const tSensorVillage = useCallback(
+    (sensor: {
+      id: string;
+      village?: string;
+      location?: { village?: string };
+    }): string => {
+      const dict = TRANSLATIONS[language] ?? TRANSLATIONS.en;
+      const raw = sensor.village ?? sensor.location?.village ?? 'Lefke';
+      return (
+        dict[`sensor.${sensor.id}.village`] ?? dict[`village.${raw}`] ?? raw
+      );
+    },
+    [language]
+  );
+
+  const tSensorArea = useCallback(
+    (sensor: {
+      id: string;
+      area?: string;
+      location?: { area?: string };
+    }): string => {
+      const dict = TRANSLATIONS[language] ?? TRANSLATIONS.en;
+      const raw = sensor.area ?? sensor.location?.area ?? '';
+      return dict[`sensor.${sensor.id}.area`] ?? dict[`area.${raw}`] ?? raw;
     },
     [language]
   );
@@ -201,6 +257,10 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       t,
       tSensorName,
       tSensorLocation,
+      tSensorVillage,
+      tSensorArea,
+      tVillage,
+      tArea,
       tSegmentName,
       tAlert,
     }),
@@ -210,6 +270,10 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       t,
       tSensorName,
       tSensorLocation,
+      tSensorVillage,
+      tSensorArea,
+      tVillage,
+      tArea,
       tSegmentName,
       tAlert,
     ]
@@ -238,6 +302,10 @@ export function useLanguage(): LanguageContextValue {
         interpolate(TRANSLATIONS.en[key] ?? key, params),
       tSensorName: (s) => s.name,
       tSensorLocation: (s) => s.location.label,
+      tSensorVillage: (s) => s.village ?? s.location?.village ?? 'Lefke',
+      tSensorArea: (s) => s.area ?? s.location?.area ?? '',
+      tVillage: (v) => v,
+      tArea: (a) => a,
       tSegmentName: (id, fallback) => fallback ?? id,
       tAlert: (alert) => ({ title: alert.title, message: alert.message }),
     };

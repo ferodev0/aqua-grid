@@ -17,8 +17,12 @@ import {
   INITIAL_CHANNEL_SEGMENTS,
 } from "../simulation/demoData";
 import {
+  buildVillageSensorGroups,
   calculateHydropowerEstimate,
   computeNetworkSummaryMetrics,
+  groupSensorsByArea,
+  groupSensorsByVillage,
+  groupSensorsByVillageAndArea,
   runSimulationTick,
   SIMULATION_TICK_INTERVAL_MS,
   type SimulationTickState,
@@ -34,16 +38,21 @@ import type {
   SensorStatus,
   TelemetryPoint,
   TelemetryTimeRange,
+  VillageSensorGroup,
 } from "../simulation/types";
 
 export interface NewSensorInput {
   id?: string;
   name: string;
   channelSegmentId: string;
+  village?: string;
+  area?: string;
   location: {
     lat?: number;
     lng?: number;
     label: string;
+    village?: string;
+    area?: string;
   };
   baseline: {
     flowRateLps: number;
@@ -54,6 +63,8 @@ export interface NewSensorInput {
 export interface SensorEditInput {
   name?: string;
   channelSegmentId?: string;
+  village?: string;
+  area?: string;
   location?: Partial<Sensor["location"]>;
   baseline?: Partial<Sensor["baseline"]>;
   status?: SensorStatus;
@@ -81,6 +92,20 @@ export interface NetworkContextValue {
   /** Set of sensor IDs manually forced into offline state for demonstration */
   forcedOfflineSensorIds: string[];
 
+  // Village & Area Grouping State
+  /** Distinct village names across all active demonstration sensors */
+  villages: string[];
+  /** Distinct sub-area names across all active demonstration sensors */
+  areas: string[];
+  /** Map of village -> Sensor[] */
+  sensorsByVillage: Record<string, Sensor[]>;
+  /** Map of area -> Sensor[] */
+  sensorsByArea: Record<string, Sensor[]>;
+  /** Nested map of village -> area -> Sensor[] */
+  sensorsByVillageAndArea: Record<string, Record<string, Sensor[]>>;
+  /** Structured hierarchical array of villages, their sub-areas, and sensors */
+  villageGroups: VillageSensorGroup[];
+
   // Simulation & Scenario Controls
   triggerCrisis: () => void;
   resetSimulation: () => void;
@@ -106,6 +131,8 @@ export interface NetworkContextValue {
 
   // Selectors & Calculators
   getSensorById: (sensorId: string) => Sensor | undefined;
+  getSensorsByVillage: (village: string) => Sensor[];
+  getSensorsByArea: (area: string) => Sensor[];
   getSensorTelemetry: (
     sensorId: string,
     range?: TelemetryTimeRange
@@ -149,6 +176,13 @@ function createFallbackContextValue(): NetworkContextValue {
     initial.sensors,
     initial.alerts
   );
+  const sensorsByVillage = groupSensorsByVillage(initial.sensors);
+  const sensorsByArea = groupSensorsByArea(initial.sensors);
+  const sensorsByVillageAndArea = groupSensorsByVillageAndArea(initial.sensors);
+  const villageGroups = buildVillageSensorGroups(initial.sensors);
+  const villages = Object.keys(sensorsByVillage);
+  const areas = Object.keys(sensorsByArea);
+
   const warnMissingProvider = () => {
     console.warn(
       "[Aqua Grid] Component called a simulation action without <NetworkProvider> mounted above it."
@@ -166,6 +200,12 @@ function createFallbackContextValue(): NetworkContextValue {
     thresholds: DEFAULT_ALERT_THRESHOLDS,
     summaryMetrics,
     forcedOfflineSensorIds: [],
+    villages,
+    areas,
+    sensorsByVillage,
+    sensorsByArea,
+    sensorsByVillageAndArea,
+    villageGroups,
     triggerCrisis: warnMissingProvider,
     resetSimulation: warnMissingProvider,
     toggleCrisis: warnMissingProvider,
@@ -186,6 +226,8 @@ function createFallbackContextValue(): NetworkContextValue {
       return {
         id: input.id ?? "SEG-FALLBACK",
         name: input.name,
+        village: input.village,
+        area: input.area,
         upstreamSensorId: input.upstreamSensorId,
         downstreamSensorId: input.downstreamSensorId,
         path: input.path,
@@ -197,6 +239,14 @@ function createFallbackContextValue(): NetworkContextValue {
     getSensorById: (sensorId) =>
       initial.sensors.find(
         (s) => s.id.toLowerCase() === sensorId.toLowerCase()
+      ),
+    getSensorsByVillage: (village) =>
+      initial.sensors.filter(
+        (s) => s.village.toLowerCase() === village.toLowerCase()
+      ),
+    getSensorsByArea: (area) =>
+      initial.sensors.filter(
+        (s) => s.area.toLowerCase() === area.toLowerCase()
       ),
     getSensorTelemetry: (sensorId, range = "1h") => {
       const points = initial.telemetryHistory.filter(
@@ -446,15 +496,26 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
     const generatedId =
       input.id?.trim() ||
       `S0${Math.max(5, Math.floor(Math.random() * 90 + 10))}`;
+    const village =
+      input.village?.trim() || input.location.village?.trim() || "Lefke";
+    const area =
+      input.area?.trim() ||
+      input.location.area?.trim() ||
+      input.location.label ||
+      "General Area";
 
     const newSensor: Sensor = {
       id: generatedId,
       name: input.name.trim() || `Demo Station ${generatedId}`,
       channelSegmentId: input.channelSegmentId || "SEG-01",
+      village,
+      area,
       location: {
         lat: input.location.lat ?? 35.114,
         lng: input.location.lng ?? 32.852,
         label: input.location.label || "Illustrative Demonstration Point",
+        village,
+        area,
         isIllustrative: true,
       },
       baseline: {
@@ -493,16 +554,24 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
           if (sensor.id !== sensorId) {
             return sensor;
           }
+          const nextVillage =
+            updates.village ??
+            updates.location?.village ??
+            sensor.village;
+          const nextArea =
+            updates.area ??
+            updates.location?.area ??
+            sensor.area;
           const nextBaseline = updates.baseline
             ? { ...sensor.baseline, ...updates.baseline }
             : sensor.baseline;
-          const nextLocation = updates.location
-            ? {
-                ...sensor.location,
-                ...updates.location,
-                isIllustrative: true,
-              }
-            : sensor.location;
+          const nextLocation = {
+            ...sensor.location,
+            ...(updates.location ?? {}),
+            village: nextVillage,
+            area: nextArea,
+            isIllustrative: true,
+          };
 
           const updated: Sensor = {
             ...sensor,
@@ -511,6 +580,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
               updates.channelSegmentId !== undefined
                 ? updates.channelSegmentId
                 : sensor.channelSegmentId,
+            village: nextVillage,
+            area: nextArea,
             location: nextLocation,
             baseline: nextBaseline,
             status: updates.status ?? sensor.status,
@@ -564,6 +635,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
           input.id?.trim() ||
           `SEG-0${Math.max(5, Math.floor(Math.random() * 90 + 10))}`,
         name: input.name,
+        village: input.village,
+        area: input.area,
         upstreamSensorId: input.upstreamSensorId,
         downstreamSensorId: input.downstreamSensorId,
         path: input.path,
@@ -612,6 +685,22 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
     [simState.sensors]
   );
 
+  const getSensorsByVillage = useCallback(
+    (village: string): Sensor[] =>
+      simState.sensors.filter(
+        (s) => s.village.toLowerCase() === village.toLowerCase()
+      ),
+    [simState.sensors]
+  );
+
+  const getSensorsByArea = useCallback(
+    (area: string): Sensor[] =>
+      simState.sensors.filter(
+        (s) => s.area.toLowerCase() === area.toLowerCase()
+      ),
+    [simState.sensors]
+  );
+
   const getSensorTelemetry = useCallback(
     (
       sensorId: string,
@@ -647,6 +736,36 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
     [simState.sensors, simState.alerts]
   );
 
+  const sensorsByVillage = useMemo(
+    () => groupSensorsByVillage(simState.sensors),
+    [simState.sensors]
+  );
+
+  const sensorsByArea = useMemo(
+    () => groupSensorsByArea(simState.sensors),
+    [simState.sensors]
+  );
+
+  const sensorsByVillageAndArea = useMemo(
+    () => groupSensorsByVillageAndArea(simState.sensors),
+    [simState.sensors]
+  );
+
+  const villageGroups = useMemo(
+    () => buildVillageSensorGroups(simState.sensors),
+    [simState.sensors]
+  );
+
+  const villages = useMemo(
+    () => Object.keys(sensorsByVillage),
+    [sensorsByVillage]
+  );
+
+  const areas = useMemo(
+    () => Object.keys(sensorsByArea),
+    [sensorsByArea]
+  );
+
   const forcedOfflineSensorIds = useMemo(
     () => Array.from(forcedOfflineIds),
     [forcedOfflineIds]
@@ -664,6 +783,12 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       thresholds,
       summaryMetrics,
       forcedOfflineSensorIds,
+      villages,
+      areas,
+      sensorsByVillage,
+      sensorsByArea,
+      sensorsByVillageAndArea,
+      villageGroups,
       triggerCrisis,
       resetSimulation,
       toggleCrisis,
@@ -679,6 +804,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       updateChannelSegment,
       removeChannelSegment,
       getSensorById,
+      getSensorsByVillage,
+      getSensorsByArea,
       getSensorTelemetry,
       getSensorAlerts,
       estimateHydropower: calculateHydropowerEstimate,
@@ -693,6 +820,12 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       thresholds,
       summaryMetrics,
       forcedOfflineSensorIds,
+      villages,
+      areas,
+      sensorsByVillage,
+      sensorsByArea,
+      sensorsByVillageAndArea,
+      villageGroups,
       triggerCrisis,
       resetSimulation,
       toggleCrisis,
@@ -708,6 +841,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       updateChannelSegment,
       removeChannelSegment,
       getSensorById,
+      getSensorsByVillage,
+      getSensorsByArea,
       getSensorTelemetry,
       getSensorAlerts,
     ]
