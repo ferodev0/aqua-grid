@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import DashboardLayout from './DashboardLayout';
+import { NetworkMap } from './pages/NetworkMap';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { SensorDetailsPage } from './pages/SensorDetailsPage';
 import { SensorsIndexPage } from './pages/SensorsIndexPage';
@@ -10,7 +11,7 @@ function App() {
       <Route path="/" element={<DashboardLayout />} />
       <Route
         path="/map"
-        element={<PlaceholderPage title="Network Map" />}
+        element={<NetworkMap />}
       />
       <Route path="/sensors" element={<SensorsIndexPage />} />
       <Route path="/sensors/:sensorId" element={<SensorDetailsPage />} />
