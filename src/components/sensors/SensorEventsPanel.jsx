@@ -71,31 +71,33 @@ export function SensorEventsPanel({ alerts }) {
   }, [isOpen]);
 
   return (
-    <>
-      <div className="flex flex-1 flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-slate-800">
+    <div className="h-full min-h-[420px]">
+      <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 shrink-0 text-lg font-semibold text-slate-800">
           {t('events.title')}
         </h3>
-        <div className="flex flex-1 flex-col gap-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
           {sortedAlerts.length === 0 ? (
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
               {t('events.empty')}
             </div>
           ) : (
             <>
-              {preview.map((alert) => (
-                <EventCard
-                  key={alert.id}
-                  alert={alert}
-                  t={t}
-                  tAlert={tAlert}
-                />
-              ))}
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+                {preview.map((alert) => (
+                  <EventCard
+                    key={alert.id}
+                    alert={alert}
+                    t={t}
+                    tAlert={tAlert}
+                  />
+                ))}
+              </div>
               {hasMore && (
                 <button
                   type="button"
                   onClick={() => setIsOpen(true)}
-                  className="mt-1 w-full rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100"
+                  className="mt-auto w-full shrink-0 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100"
                 >
                   {t('events.seeMore', {
                     count: sortedAlerts.length - PREVIEW_LIMIT,
@@ -147,6 +149,6 @@ export function SensorEventsPanel({ alerts }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

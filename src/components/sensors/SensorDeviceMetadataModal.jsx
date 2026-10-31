@@ -60,18 +60,18 @@ export function SensorDeviceMetadataModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] w-full max-w-md flex-col rounded-xl border border-slate-200 bg-white shadow-lg"
+        className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <div>
             <h4
               id="device-metadata-modal-title"
-              className="text-lg font-semibold text-slate-800"
+              className="text-base font-semibold text-slate-800"
             >
               {t('metadata.title')}
             </h4>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="text-xs text-slate-400">
               {t('metadata.subtitle')}
             </p>
           </div>
@@ -83,14 +83,17 @@ export function SensorDeviceMetadataModal({
             {t('common.close')}
           </button>
         </div>
-        <dl className="flex flex-col gap-3 overflow-y-auto p-5">
+
+        <dl className="divide-y divide-slate-100 px-5 py-1">
           {rows.map(([label, value]) => (
             <div
               key={label}
-              className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+              className="flex items-start justify-between gap-6 py-2.5"
             >
-              <dt className="text-xs text-slate-400">{label}</dt>
-              <dd className="mt-1 text-sm text-slate-600">{value}</dd>
+              <dt className="shrink-0 text-sm text-slate-500">{label}</dt>
+              <dd className="text-right text-sm font-medium text-slate-800">
+                {value}
+              </dd>
             </div>
           ))}
         </dl>

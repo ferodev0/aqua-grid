@@ -39,12 +39,33 @@ const NAV_ITEMS = [
     to: '/sensors',
     match: (pathname) => pathname.startsWith('/sensors'),
     icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M13 10V3L4 14h7v7l9-11h-7z"
-      />
+      <>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M8.5 8.5a5 5 0 000 7"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M5.5 5.5a9.5 9.5 0 000 13"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15.5 8.5a5 5 0 010 7"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M18.5 5.5a9.5 9.5 0 010 13"
+        />
+      </>
     ),
   },
   {
@@ -66,7 +87,7 @@ const NAV_ITEMS = [
 /**
  * Shared shell adapted from origin/dashboard DashboardLayout design language.
  */
-export function AppLayout({ title, children }) {
+export function AppLayout({ title, children, denseHeader = false }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { pathname } = useLocation();
   const { t } = useLanguage();
@@ -164,7 +185,11 @@ export function AppLayout({ title, children }) {
       </aside>
 
       <main className="flex flex-1 flex-col overflow-y-auto p-6">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <header
+          className={`flex flex-wrap items-center justify-between gap-3 ${
+            denseHeader ? 'mb-3' : 'mb-8'
+          }`}
+        >
           <h2 className="text-2xl font-semibold text-slate-800">{title}</h2>
           <div className="flex flex-wrap items-center gap-3">
             <LanguageSwitcher />

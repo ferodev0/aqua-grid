@@ -4,6 +4,7 @@ import { useLanguage } from './context/LanguageContext';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { SensorDetailsPage } from './pages/SensorDetailsPage';
 import { SensorsIndexPage } from './pages/SensorsIndexPage';
+import { AboutPage } from './pages/about/AboutPage';
 
 function App() {
   const { t } = useLanguage();
@@ -19,7 +20,7 @@ function App() {
       <Route path="/sensors/:sensorId" element={<SensorDetailsPage />} />
       <Route
         path="/impact"
-        element={<PlaceholderPage title={t('nav.impact')} />}
+        element={<AboutPage title={t('nav.impact')} />}
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

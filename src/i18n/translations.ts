@@ -72,7 +72,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     // Sensors Index Page
     'sensors.title': 'Sensors',
     'sensors.subtitle':
-      'Live demonstration stations from the shared simulation. Values update automatically; trigger crisis to exercise downstream reductions.',
+      'Live demonstration stations from the shared simulation.',
+    'sensors.searchAria': 'Search sensors by ID or station name',
+    'sensors.searchPlaceholder': 'Search by ID or station…',
+    'sensors.noMatch': 'No stations match “{query}”.',
     'sensors.table.id': 'ID',
     'sensors.table.station': 'Station',
     'sensors.table.location': 'Location',
@@ -101,7 +104,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Telemetry Chart & Events Panel & Metadata Modal
     'chart.telemetryOverTime': 'Telemetry over time',
-    'chart.sharedHistory': 'Shared simulation history',
+    'chart.sharedHistory': 'Simulated water flow rate (L/s) · shared history',
     'chart.waitingTelemetry': 'Waiting for telemetry points…',
     'chart.flowSeries': 'Flow (L/s)',
     'chart.levelSeries': 'Level (m)',
@@ -217,7 +220,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     // Sensors Index Page
     'sensors.title': 'Sensörler',
     'sensors.subtitle':
-      'Paylaşılan simülasyondaki canlı demo istasyonları. Değerler otomatik güncellenir; mansap düşüşlerini görmek için kriz senaryosunu tetikleyin.',
+      'Paylaşılan simülasyondaki canlı demo istasyonları.',
+    'sensors.searchAria': 'Sensörleri ID veya istasyon adına göre ara',
+    'sensors.searchPlaceholder': 'ID veya istasyon adına göre ara…',
+    'sensors.noMatch': '“{query}” ile eşleşen istasyon bulunamadı.',
     'sensors.table.id': 'ID',
     'sensors.table.station': 'İstasyon',
     'sensors.table.location': 'Konum',
@@ -246,7 +252,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Telemetry Chart & Events Panel & Metadata Modal
     'chart.telemetryOverTime': 'Zamana göre telemetri',
-    'chart.sharedHistory': 'Paylaşılan simülasyon geçmişi',
+    'chart.sharedHistory': 'Simüle edilen su debisi (L/s) · paylaşılan geçmiş',
     'chart.waitingTelemetry': 'Telemetri verileri bekleniyor…',
     'chart.flowSeries': 'Debi (L/s)',
     'chart.levelSeries': 'Seviye (m)',
@@ -362,7 +368,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     // Sensors Index Page
     'sensors.title': 'Αισθητήρες',
     'sensors.subtitle':
-      'Ζωντανοί σταθμοί επίδειξης από την κοινή προσομοίωση. Οι τιμές ενημερώνονται αυτόματα· ενεργοποιήστε την κρίση για δοκιμή μειώσεων ροής.',
+      'Ζωντανοί σταθμοί επίδειξης από την κοινή προσομοίωση.',
+    'sensors.searchAria': 'Αναζήτηση αισθητήρων με ID ή όνομα σταθμού',
+    'sensors.searchPlaceholder': 'Αναζήτηση με ID ή σταθμό…',
+    'sensors.noMatch': 'Κανένας σταθμός δεν ταιριάζει με «{query}».',
     'sensors.table.id': 'ID',
     'sensors.table.station': 'Σταθμός',
     'sensors.table.location': 'Τοποθεσία',
@@ -391,7 +400,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Telemetry Chart & Events Panel & Metadata Modal
     'chart.telemetryOverTime': 'Τηλεμετρία ανά χρόνο',
-    'chart.sharedHistory': 'Κοινό ιστορικό προσομοίωσης',
+    'chart.sharedHistory': 'Προσομοιωμένη παροχή νερού (L/s) · κοινό ιστορικό',
     'chart.waitingTelemetry': 'Αναμονή για δεδομένα τηλεμετρίας…',
     'chart.flowSeries': 'Ροή (L/s)',
     'chart.levelSeries': 'Στάθμη (m)',

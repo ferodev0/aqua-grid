@@ -37,7 +37,7 @@ export function SensorDetailsPage() {
 
   if (!sensor) {
     return (
-      <AppLayout title={t('sensorDetails.title')}>
+      <AppLayout title={t('sensorDetails.title')} denseHeader>
         <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <p className="text-sm font-medium text-slate-500">
             {t('sensorDetails.notFoundLabel')}
@@ -69,6 +69,8 @@ export function SensorDetailsPage() {
       </AppLayout>
     );
   }
+
+  const localizedSensorName = tSensorName(sensor);
 
   const primaryMetrics = [
     {
@@ -132,8 +134,8 @@ export function SensorDetailsPage() {
   );
 
   return (
-    <AppLayout title={t('sensorDetails.title')}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <AppLayout title={t('sensorDetails.title')} denseHeader>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <nav className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
           <Link to="/sensors" className="hover:text-teal-700">
             {t('nav.sensors')}
@@ -150,7 +152,7 @@ export function SensorDetailsPage() {
         </button>
       </div>
 
-      <section className="mb-6 grid gap-4 lg:grid-cols-2">
+      <section className="mb-3 grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -158,7 +160,7 @@ export function SensorDetailsPage() {
                 {t('sensorDetails.stationLabel')}
               </p>
               <h3 className="mt-1 text-2xl font-semibold text-slate-800">
-                {tSensorName(sensor)}
+                {localizedSensorName}
               </h3>
             </div>
             <StatusBadge status={sensor.status} />
@@ -191,16 +193,16 @@ export function SensorDetailsPage() {
         </div>
       </section>
 
-      <section className="flex min-h-[450px] flex-col gap-3 lg:flex-row">
+      <section className="grid min-h-[420px] gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-stretch">
         <SensorTelemetryChart
           points={telemetry}
           range={range}
           onRangeChange={setRange}
+          sensorId={sensor.id}
+          sensorName={localizedSensorName}
+          currentFlowLps={sensor.current.flowRateLps}
         />
-
-        <div className="flex min-w-[280px] flex-1 flex-col">
-          <SensorEventsPanel alerts={alerts} />
-        </div>
+        <SensorEventsPanel alerts={alerts} />
       </section>
 
       <SensorDeviceMetadataModal
