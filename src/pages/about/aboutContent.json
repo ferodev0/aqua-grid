@@ -1,0 +1,68 @@
+{
+  "storyStops": [
+    {
+      "number": "01",
+      "eyebrow": "Why Aqua Grid",
+      "title": "One reading can’t tell the whole story.",
+      "body": "Water moves through a network of channels, but a reading from one place only shows what is happening there. Aqua Grid is a project exploring how observations from more points could help people understand the bigger picture in Lefke.",
+      "note": "A change in flow is a reason to take a closer look—not proof of what caused it.",
+      "side": "left"
+    },
+    {
+      "number": "02",
+      "eyebrow": "What we’re working toward",
+      "title": "Bring separate readings into one shared view.",
+      "body": "The idea is simple: place monitoring stations at useful points, bring their readings together, and make it easier to compare what is happening along the channel. If something looks unusual, people have a clearer place to start asking questions.",
+      "note": "The dashboard is a prototype. Its sensor readings are simulated, not measured in the field.",
+      "side": "right"
+    },
+    {
+      "number": "03",
+      "eyebrow": "How it fits together",
+      "title": "Useful tools, with people in the loop.",
+      "body": "Sensors could keep watch at selected points, while a shared dashboard helps operators and decision-makers compare readings over time. The aim isn’t to replace local knowledge; it’s to give people another useful way to spot where attention may be needed.",
+      "note": "The right sensors and locations still need to be chosen through field surveys and consultation.",
+      "side": "left"
+    },
+    {
+      "number": "04",
+      "eyebrow": "Why better visibility matters",
+      "title": "Spend less time guessing where to look.",
+      "body": "With readings from more than one place, teams could notice unusual changes sooner, prioritise field checks, and build a more useful picture for future water-management decisions.",
+      "note": "These are hoped-for benefits. They need to be tested with real data and the people who would use it.",
+      "side": "right"
+    },
+    {
+      "number": "05",
+      "eyebrow": "An idea to investigate",
+      "title": "Could the flow support a little clean energy?",
+      "body": "At some sites, moving water might offer a small renewable-energy opportunity. Aqua Grid treats that as a question for future study: first understand the flow and the site, then see whether further assessment makes sense.",
+      "note": "No hydropower site has been proven feasible. Measurements and technical, environmental, and operational checks would come first.",
+      "side": "left"
+    },
+    {
+      "number": "06",
+      "eyebrow": "What comes next",
+      "title": "Start small, listen, and learn.",
+      "body": "A real pilot would begin by talking with local stakeholders and surveying the channel. From there, a small number of suitable sites could be selected, sensors calibrated, and real readings collected before deciding what—if anything—to expand.",
+      "note": "Permissions, maintenance, and long-term ownership would need to be part of that conversation.",
+      "side": "right"
+    }
+  ],
+  "goals": [
+    ["06", "Clean water", "Help people build a clearer picture of local water conditions."],
+    ["07", "Clean energy", "Explore small-scale renewable energy only where a site is suitable."],
+    ["09", "Industry and infrastructure", "See how connected monitoring might inform infrastructure planning."],
+    ["11", "Sustainable communities", "Support conversations about more resilient local services."],
+    ["12", "Responsible resource use", "Make it easier to ask how water and infrastructure are being used."],
+    ["13", "Climate action", "Explore ideas that could support local resilience over time."]
+  ],
+  "roadmap": [
+    "Talk with local stakeholders and survey the channel",
+    "Choose a few suitable locations for a pilot",
+    "Install and calibrate sensors, then collect real readings",
+    "Check whether the readings are useful in day-to-day decisions",
+    "Study energy potential at suitable sites",
+    "Decide together whether expansion is worthwhile"
+  ]
+}

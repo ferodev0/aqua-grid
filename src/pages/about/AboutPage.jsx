@@ -1,67 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
+import aboutContent from './aboutContent.json';
 import './AboutPage.css';
-
-const STORY_STOPS = [
-  {
-    number: '01',
-    eyebrow: 'The challenge',
-    title: 'A channel is a network, not a single reading.',
-    body: 'In Lefke, understanding how water moves through a channel takes more than checking one point. Aqua Grid explores how distributed observations could give communities a clearer picture of changing conditions.',
-    note: 'Changes in flow need investigation; their cause should not be assumed.',
-    side: 'left',
-  },
-  {
-    number: '02',
-    eyebrow: 'Our approach',
-    title: 'Connect the points. Make patterns easier to see.',
-    body: 'A proposed network of monitoring stations brings flow readings into one shared view. Comparing locations over time could help surface unusual changes and guide where a closer look is needed.',
-    note: 'The current dashboard is a working concept powered by simulated readings.',
-    side: 'right',
-  },
-  {
-    number: '03',
-    eyebrow: 'What it could support',
-    title: 'Better questions for better decisions.',
-    body: 'Earlier visibility may help teams prioritise field inspections, make more informed water-management decisions, and build evidence for future infrastructure planning.',
-    note: 'At suitable sites, measured data could also inform a micro-hydropower feasibility study—not prove one.',
-    side: 'left',
-  },
-  {
-    number: '04',
-    eyebrow: 'A careful next step',
-    title: 'Measure first. Expand with evidence.',
-    body: 'A real deployment would begin with people and place: consult stakeholders, survey the channel, and select a small number of appropriate pilot sites.',
-    note: 'Sensor placement, permissions, maintenance, and operating needs all require local evaluation.',
-    side: 'right',
-  },
-  {
-    number: '05',
-    eyebrow: 'The bigger picture',
-    title: 'Infrastructure that helps communities adapt.',
-    body: 'Aqua Grid is intended to explore how practical monitoring can support responsible water use, resilient local services, and carefully assessed clean-energy opportunities.',
-    note: 'These are areas of intended contribution, not achieved or certified outcomes.',
-    side: 'left',
-  },
-];
-
-const GOALS = [
-  ['06', 'Clean water', 'Support better observation and management of water resources.'],
-  ['07', 'Clean energy', 'Explore renewable energy recovery where appropriate.'],
-  ['09', 'Resilient infrastructure', 'Use digital monitoring to inform infrastructure decisions.'],
-  ['11', 'Sustainable communities', 'Support resilient local services and planning.'],
-  ['12', 'Responsible resource use', 'Encourage more informed use of water and infrastructure.'],
-  ['13', 'Climate action', 'Explore local resilience and renewable-energy opportunities.'],
-];
-
-const ROADMAP = [
-  'Survey the channel and consult local stakeholders',
-  'Select suitable sites for a small sensor pilot',
-  'Install, calibrate, and collect real-world data',
-  'Evaluate anomalies and operational usefulness',
-  'Assess hydropower feasibility at selected sites',
-  'Consider expansion with evidence and approval',
-];
 
 export function AboutPage({ title = 'Impact / About' }) {
   const storyRef = useRef(null);
@@ -74,33 +14,88 @@ export function AboutPage({ title = 'Impact / About' }) {
 
     if (!story || !waterPath || !scroller) return undefined;
 
-    const pathLength = waterPath.getTotalLength();
-    waterPath.style.strokeDasharray = `${pathLength} ${pathLength}`;
+    let renderedPathLength = waterPath.getTotalLength();
+    const measureRenderedPath = () => {
+      const pathLength = waterPath.getTotalLength();
+      const transform = waterPath.getScreenCTM();
+      if (!transform) return;
 
-    const updateWater = () => {
-      const storyTop =
-        story.getBoundingClientRect().top -
-        scroller.getBoundingClientRect().top +
-        scroller.scrollTop;
-      const progress = Math.min(
-        1,
-        Math.max(
-          0,
-          (scroller.scrollTop + scroller.clientHeight * 0.5 - storyTop) /
-            story.offsetHeight,
-        ),
-      );
+      const sampleCount = Math.ceil(pathLength / 2);
+      let previousPoint;
+      renderedPathLength = 0;
 
-      waterPath.style.strokeDashoffset = `${pathLength * (1 - progress)}`;
+      for (let index = 0; index <= sampleCount; index += 1) {
+        const point = waterPath.getPointAtLength(
+          (pathLength * index) / sampleCount,
+        );
+        const x = transform.a * point.x + transform.c * point.y;
+        const y = transform.b * point.x + transform.d * point.y;
+
+        if (previousPoint) {
+          renderedPathLength += Math.hypot(
+            x - previousPoint.x,
+            y - previousPoint.y,
+          );
+        }
+
+        previousPoint = { x, y };
+      }
+
+      waterPath.style.strokeDasharray = `${renderedPathLength} ${renderedPathLength}`;
     };
 
-    updateWater();
+    const leadPx = 80;
+
+    const updateWater = () => {
+      const storyCards = story.querySelectorAll('.aqua-about-story-row');
+      const firstCard = storyCards[0];
+      const lastCard = storyCards[storyCards.length - 1];
+
+      if (!firstCard || !lastCard) {
+        waterPath.style.strokeDashoffset = `${renderedPathLength}`;
+        return;
+      }
+
+      const scrollerRect = scroller.getBoundingClientRect();
+      const firstCardRect = firstCard.getBoundingClientRect();
+      const lastCardRect = lastCard.getBoundingClientRect();
+      const scrollMarker =
+        scrollerRect.top + scroller.clientHeight * 0.5 + leadPx;
+      const firstCardCenter = firstCardRect.top + firstCardRect.height * 0.5;
+      const lastCardCenter = lastCardRect.top + lastCardRect.height * 0.5;
+      const distance = lastCardCenter - firstCardCenter;
+      const progress =
+        lastCardRect.bottom <= scrollerRect.bottom
+          ? 1
+          : Math.min(
+              1,
+              Math.max(
+                0,
+                distance > 0
+                  ? (scrollMarker - firstCardCenter) / distance
+                  : 0,
+              ),
+            );
+
+      waterPath.style.strokeDashoffset = `${renderedPathLength * (1 - progress)}`;
+    };
+
+    const refreshCanal = () => {
+      measureRenderedPath();
+      updateWater();
+    };
+
+    refreshCanal();
     scroller.addEventListener('scroll', updateWater, { passive: true });
-    window.addEventListener('resize', updateWater);
+    window.addEventListener('resize', refreshCanal);
+
+    const resizeObserver = new ResizeObserver(refreshCanal);
+    resizeObserver.observe(story);
 
     return () => {
       scroller.removeEventListener('scroll', updateWater);
-      window.removeEventListener('resize', updateWater);
+      window.removeEventListener('resize', refreshCanal);
+      resizeObserver.disconnect();
     };
   }, []);
 
@@ -113,7 +108,7 @@ export function AboutPage({ title = 'Impact / About' }) {
               <span className="aqua-about-kicker-mark" aria-hidden="true" />
               A clearer view of every drop
             </p>
-            <h1>Follow the flow. Understand the whole channel.</h1>
+            <h1>Observe the flow, understand the channel.</h1>
             <p className="aqua-about-intro">
               Aqua Grid is a concept for connecting water-channel observations
               across Lefke—helping people see what is changing, where to look
@@ -185,7 +180,7 @@ export function AboutPage({ title = 'Impact / About' }) {
                 d="M50 0 L50 105 L18 170 L18 285 L50 350 L82 420 L82 535 L50 600 L18 670 L18 785 L50 850 L50 1000"
               />
             </svg>
-            {STORY_STOPS.map((stop) => (
+            {aboutContent.storyStops.map((stop) => (
               <article
                 className={`aqua-about-story-row aqua-about-story-row--${stop.side}`}
                 key={stop.number}
@@ -216,7 +211,7 @@ export function AboutPage({ title = 'Impact / About' }) {
             </p>
           </div>
           <div className="aqua-about-goal-grid">
-            {GOALS.map(([number, name, description]) => (
+            {aboutContent.goals.map(([number, name, description]) => (
               <article className="aqua-about-goal-card" key={number}>
                 <span className="aqua-about-goal-number">{number}</span>
                 <div>
@@ -238,7 +233,7 @@ export function AboutPage({ title = 'Impact / About' }) {
             </p>
           </div>
           <ol className="aqua-about-roadmap">
-            {ROADMAP.map((phase, index) => (
+            {aboutContent.roadmap.map((phase, index) => (
               <li key={phase}>
                 <span>0{index + 1}</span>
                 <p>{phase}</p>
