@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import './index.css';
 import { useNetwork } from './context/NetworkContext';
@@ -39,6 +39,9 @@ export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedRange, setSelectedRange] = useState('1h');
   const [selectedSensorId, setSelectedSensorId] = useState('ALL');
+  
+  // Grafik hover state'i
+  const [hoveredPoint, setHoveredPoint] = useState(null);
 
   const {
     demoBannerText,
@@ -49,6 +52,7 @@ export default function DashboardLayout() {
     triggerCrisis,
     resetSimulation,
     getSensorTelemetry,
+    estimateHydropower, // Hidroelektrik tahmini için eklendi
   } = useNetwork();
 
   const visibleSensors =
@@ -56,6 +60,29 @@ export default function DashboardLayout() {
       ? sensors
       : sensors.filter((s) => s.id === selectedSensorId);
 
+  // Her sensör için hidroelektrik potansiyelini hesaplama (Hover menüsü için)
+const hydropowerData = useMemo(() => {
+    return sensors.map(sensor => {
+      // 1. Akış hızını alıyoruz (eğer yoksa 0 kabul et)
+      const flowLps = Number(sensor.current?.flowRateLps) || 0;
+      
+      // 2. Sabitler ve parametreler
+      const RHO = 1000;        // Suyun yoğunluğu (kg/m³)
+      const G = 9.81;          // Yerçekimi ivmesi (m/s²)
+      const Q_m3s = flowLps / 1000; // L/s -> m³/s dönüşümü
+      const HEAD = 2.8;        // Suyun net düşüş yüksekliği (Metre)
+      const EFFICIENCY = 0.65; // Türbin verimliliği (%65)
+      
+      // 3. Formül: P = ρ * g * Q * H * η
+      const calculatedWatts = RHO * G * Q_m3s * HEAD * EFFICIENCY;
+
+      return {
+        id: sensor.id,
+        name: sensor.name,
+        powerWatts: calculatedWatts
+      };
+    });
+  }, [sensors]); // estimateHydropower bağımlılığını sildik, sadece sensors yeterli
   // Build SVG polyline paths for the temporal chart
   const chartWidth = 680;
   const chartHeight = 250;
@@ -77,7 +104,8 @@ export default function DashboardLayout() {
           : (idx / (points.length - 1)) * innerWidth);
       const clampedFlow = Math.min(Math.max(pt.flowRateLps, 0), maxFlowY);
       const y = padTop + innerHeight - (clampedFlow / maxFlowY) * innerHeight;
-      return { x, y, pt };
+      // Hover için pt verisini ve sensör kimliğini de saklıyoruz
+      return { x, y, pt, sensorId: sensor.id, sensorName: sensor.name };
     });
 
     return {
@@ -95,13 +123,13 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden">
+      
       {/* Dinamik Genişlikli Left Navigation Panel */}
       <aside
-        className={`bg-white flex flex-col border-r border-slate-200 shadow-sm transition-all duration-300 ease-in-out ${
+        className={`bg-white flex flex-col border-r border-slate-200 shadow-sm transition-all duration-300 ease-in-out z-20 ${
           isSidebarOpen ? 'w-64' : 'w-20'
         }`}
       >
-        {/* Header Alanı ve Toggle Butonu */}
         <div className="p-6 flex items-center justify-between">
           <h1
             className={`font-bold text-teal-600 tracking-wide whitespace-nowrap overflow-hidden transition-all duration-300 ${
@@ -115,33 +143,16 @@ export default function DashboardLayout() {
             className="p-2 rounded-md text-slate-400 hover:bg-slate-100 hover:text-teal-600 focus:outline-none transition-colors"
             title={isSidebarOpen ? 'Menüyü Daralt' : 'Menüyü Genişlet'}
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isSidebarOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               )}
             </svg>
           </button>
         </div>
 
-        {/* Navigasyon Linkleri */}
         <nav className="flex flex-col gap-2 px-3 flex-1 overflow-x-hidden">
           <NavLink
             to="/"
@@ -150,21 +161,15 @@ export default function DashboardLayout() {
                 ? 'bg-teal-50 text-teal-700 font-semibold border-teal-200'
                 : 'bg-transparent text-teal-600 border-transparent hover:bg-teal-50 justify-center'
             }`}
-            title="Dashboard"
           >
             <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
             <span className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
               Dashboard
             </span>
           </NavLink>
-
+          
           <NavLink
             to="/map"
             className={`flex items-center gap-4 text-left px-3 py-3 rounded-lg border border-transparent transition-all whitespace-nowrap ${
@@ -172,15 +177,9 @@ export default function DashboardLayout() {
                 ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                 : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 justify-center'
             }`}
-            title="Network Map"
           >
             <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
             <span className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
               Network Map
@@ -194,15 +193,9 @@ export default function DashboardLayout() {
                 ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                 : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 justify-center'
             }`}
-            title="Sensors"
           >
             <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             <span className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
               Sensors
@@ -216,15 +209,9 @@ export default function DashboardLayout() {
                 ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                 : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 justify-center'
             }`}
-            title="Impact / About"
           >
             <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
               Impact / About
@@ -234,8 +221,22 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col p-6 overflow-y-auto">
-        {/* Header with Mandatory Disclaimer & Demo Scenario Controls */}
+      <main className="flex-1 flex flex-col p-6 overflow-y-auto relative">
+        
+        {/* Hover Tooltip Overlay (Grafik İçin) */}
+        {hoveredPoint && (
+          <div
+            className="fixed z-50 bg-slate-900 text-white text-xs px-3 py-2 rounded shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px]"
+            style={{ left: hoveredPoint.clientX, top: hoveredPoint.clientY }}
+          >
+            <div className="font-bold mb-1" style={{ color: SENSOR_COLORS[hoveredPoint.sensorId] }}>
+              {hoveredPoint.sensorId} - {hoveredPoint.sensorName}
+            </div>
+            <div>Zaman: {formatTime(hoveredPoint.pt.timestamp)}</div>
+            <div>Akış: {hoveredPoint.pt.flowRateLps.toFixed(2)} L/s</div>
+          </div>
+        )}
+
         <header className="flex flex-wrap justify-between items-center gap-4 mb-6">
           <div>
             <h2 className="text-2xl font-semibold text-slate-800">Network Overview</h2>
@@ -269,9 +270,10 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        {/* Top Summary Cards (Flexbox) */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          
+          {/* Estimated Power Potential Card + Hover Dropdown */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group cursor-help transition-all hover:border-teal-300 hover:shadow-md">
             <h3 className="text-slate-500 text-sm font-medium mb-1">
               Estimated Power Potential
             </h3>
@@ -281,9 +283,26 @@ export default function DashboardLayout() {
             <p className="text-xs text-slate-400 mt-1">
               Illustrative estimate (2.8 m head, 65% eff.)
             </p>
+
+            {/* Hover ile açılan detay listesi */}
+            <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
+              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Potential by Station</div>
+              <div className="flex flex-col gap-1.5">
+                {hydropowerData.map(data => (
+                  <div key={data.id} className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 font-medium">
+                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: SENSOR_COLORS[data.id] }}></span>
+                      {data.id}
+                    </span>
+                    <span className="font-bold text-teal-700">{data.powerWatts.toFixed(0)} W</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          {/* Active Sensors Card + Hover Dropdown */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group cursor-help transition-all hover:border-teal-300 hover:shadow-md">
             <h3 className="text-slate-500 text-sm font-medium mb-1">
               Active Sensors
             </h3>
@@ -299,6 +318,24 @@ export default function DashboardLayout() {
                 'All stations reporting within normal range'
               )}
             </p>
+
+            {/* Hover ile açılan detay listesi */}
+            <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 p-3">
+              <div className="text-xs font-semibold text-slate-500 mb-2 border-b pb-1">Station Statuses</div>
+              <div className="flex flex-col gap-1.5">
+                {sensors.map(sensor => (
+                  <div key={sensor.id} className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 font-medium">
+                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: SENSOR_COLORS[sensor.id] }}></span>
+                      {sensor.id}
+                    </span>
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${STATUS_BADGE_STYLES[sensor.status]}`}>
+                      {sensor.status === 'normal' ? 'Active' : sensor.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -342,52 +379,7 @@ export default function DashboardLayout() {
             </p>
           </div>
         </section>
-
-        {/* Station Quick Status Bar */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          {sensors.map((sensor) => (
-            <div
-              key={sensor.id}
-              onClick={() =>
-                setSelectedSensorId((prev) =>
-                  prev === sensor.id ? 'ALL' : sensor.id
-                )
-              }
-              className={`p-3.5 rounded-xl border transition-all cursor-pointer bg-white shadow-sm ${
-                selectedSensorId === sensor.id
-                  ? 'ring-2 ring-teal-500 border-teal-400'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-semibold text-sm text-slate-800">
-                  {sensor.id} — {sensor.name}
-                </span>
-                <span
-                  className={`text-xs font-semibold uppercase px-2 py-0.5 rounded border ${
-                    STATUS_BADGE_STYLES[sensor.status] || STATUS_BADGE_STYLES.normal
-                  }`}
-                >
-                  {sensor.status}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs text-slate-600">
-                <span>
-                  Flow: <strong className="text-slate-800">{sensor.current.flowRateLps.toFixed(2)} L/s</strong>
-                </span>
-                <span>
-                  Level: <strong className="text-slate-800">{sensor.current.waterLevelM.toFixed(2)} m</strong>
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 flex justify-between">
-                <span>Baseline: {sensor.baseline.flowRateLps.toFixed(1)} L/s</span>
-                <span>Updated {formatTime(sensor.current.updatedAt)}</span>
-              </div>
-            </div>
-          ))}
-        </section>
-
-        {/* Adjacent Chart and Log Panels */}
+        
         <section className="flex flex-col lg:flex-row gap-4 flex-1 min-h-[420px]">
           {/* Chart Panel */}
           <div className="flex-[2] bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
@@ -397,7 +389,7 @@ export default function DashboardLayout() {
                   Simulated Water Flow Rate (L/s)
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Live telemetry stream (click a station card above to isolate)
+                  Live telemetry stream (Grafik üzerinde noktalara mouse ile gel)
                 </p>
               </div>
 
@@ -440,155 +432,96 @@ export default function DashboardLayout() {
                 viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                 className="w-full h-full max-h-[290px] overflow-visible"
               >
-                {/* Horizontal grid lines */}
                 {[0, 3, 6, 9, 12, 15].map((tickVal) => {
-                  const y =
-                    padTop + innerHeight - (tickVal / maxFlowY) * innerHeight;
+                  const y = padTop + innerHeight - (tickVal / maxFlowY) * innerHeight;
                   return (
                     <g key={tickVal}>
-                      <line
-                        x1={padLeft}
-                        y1={y}
-                        x2={chartWidth - padRight}
-                        y2={y}
-                        stroke="#e2e8f0"
-                        strokeDasharray="3 3"
-                      />
-                      <text
-                        x={padLeft - 8}
-                        y={y + 4}
-                        textAnchor="end"
-                        className="fill-slate-400 text-[10px]"
-                      >
-                        {tickVal} L/s
-                      </text>
+                      <line x1={padLeft} y1={y} x2={chartWidth - padRight} y2={y} stroke="#e2e8f0" strokeDasharray="3 3" />
+                      <text x={padLeft - 8} y={y + 4} textAnchor="end" className="fill-slate-400 text-[10px]">{tickVal} L/s</text>
                     </g>
                   );
                 })}
 
-                {/* Lines for each visible sensor */}
+                {/* Grafikteki noktalar ve Hover tetikleyicileri */}
                 {sensorSeries.map(({ sensor, polyline, coords, color }) => {
-                  const lastCoord = coords[coords.length - 1];
                   return (
                     <g key={sensor.id}>
-                      <polyline
-                        fill="none"
-                        stroke={color}
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        points={polyline}
-                      />
-                      {lastCoord && (
-                        <circle
-                          cx={lastCoord.x}
-                          cy={lastCoord.y}
-                          r="4"
-                          fill={color}
-                          stroke="#ffffff"
-                          strokeWidth="1.5"
-                        />
-                      )}
+                      <polyline fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={polyline} />
+                      
+                      {coords.map((coord, i) => (
+                        <g key={i}>
+                          {/* Mouse'u yakalamak için daha büyük şeffaf daire */}
+                          <circle
+                            cx={coord.x}
+                            cy={coord.y}
+                            r="12"
+                            fill="transparent"
+                            className="cursor-crosshair"
+                            onMouseEnter={(e) => setHoveredPoint({ ...coord, clientX: e.clientX, clientY: e.clientY })}
+                            onMouseLeave={() => setHoveredPoint(null)}
+                          />
+                          {/* Görsel nokta, hover yapılınca büyür */}
+                          <circle
+                            cx={coord.x}
+                            cy={coord.y}
+                            r={hoveredPoint?.pt?.timestamp === coord.pt.timestamp && hoveredPoint?.sensorId === coord.sensorId ? "5" : "2.5"}
+                            fill={color}
+                            stroke="#ffffff"
+                            strokeWidth="1.5"
+                            className="pointer-events-none transition-all duration-100"
+                          />
+                        </g>
+                      ))}
                     </g>
                   );
                 })}
 
-                {/* Time axis labels */}
                 {referenceTicks.length > 1 && (
                   <>
-                    <text
-                      x={padLeft}
-                      y={chartHeight - 6}
-                      textAnchor="start"
-                      className="fill-slate-400 text-[10px]"
-                    >
+                    <text x={padLeft} y={chartHeight - 6} textAnchor="start" className="fill-slate-400 text-[10px]">
                       {formatTime(referenceTicks[0]?.timestamp)}
                     </text>
-                    <text
-                      x={padLeft + innerWidth / 2}
-                      y={chartHeight - 6}
-                      textAnchor="middle"
-                      className="fill-slate-400 text-[10px]"
-                    >
-                      {formatTime(
-                        referenceTicks[Math.floor(referenceTicks.length / 2)]
-                          ?.timestamp
-                      )}
+                    <text x={padLeft + innerWidth / 2} y={chartHeight - 6} textAnchor="middle" className="fill-slate-400 text-[10px]">
+                      {formatTime(referenceTicks[Math.floor(referenceTicks.length / 2)]?.timestamp)}
                     </text>
-                    <text
-                      x={chartWidth - padRight}
-                      y={chartHeight - 6}
-                      textAnchor="end"
-                      className="fill-slate-400 text-[10px]"
-                    >
-                      {formatTime(
-                        referenceTicks[referenceTicks.length - 1]?.timestamp
-                      )}
+                    <text x={chartWidth - padRight} y={chartHeight - 6} textAnchor="end" className="fill-slate-400 text-[10px]">
+                      {formatTime(referenceTicks[referenceTicks.length - 1]?.timestamp)}
                     </text>
                   </>
                 )}
               </svg>
 
-              {/* Chart Legend */}
               <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-slate-200/80 text-xs">
                 {visibleSensors.map((s) => (
                   <div key={s.id} className="flex items-center gap-1.5">
-                    <span
-                      className="w-3 h-3 rounded-full inline-block"
-                      style={{
-                        backgroundColor: SENSOR_COLORS[s.id] || '#0f766e',
-                      }}
-                    />
-                    <span className="font-medium text-slate-700">
-                      {s.id} ({s.name}):
-                    </span>
-                    <span className="font-bold text-slate-900">
-                      {s.current.flowRateLps.toFixed(2)} L/s
-                    </span>
+                    <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: SENSOR_COLORS[s.id] || '#0f766e' }} />
+                    <span className="font-medium text-slate-700">{s.id} ({s.name}):</span>
+                    <span className="font-bold text-slate-900">{s.current.flowRateLps.toFixed(2)} L/s</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Sensor Status Logs Panel */}
           <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col max-h-[500px]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-800">
-                Alerts & Recent Events
-              </h3>
-              <span className="text-xs font-medium text-slate-500">
-                {alerts.filter((a) => a.status === 'active').length} active
-              </span>
+              <h3 className="text-lg font-semibold text-slate-800">Alerts & Recent Events</h3>
+              <span className="text-xs font-medium text-slate-500">{alerts.filter((a) => a.status === 'active').length} active</span>
             </div>
 
             <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
               {alerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className={`p-3 border rounded-lg transition-opacity ${
-                    ALERT_BADGE_STYLES[alert.severity] || ALERT_BADGE_STYLES.info
-                  } ${alert.status === 'resolved' ? 'opacity-60' : ''}`}
-                >
+                <div key={alert.id} className={`p-3 border rounded-lg transition-opacity ${ALERT_BADGE_STYLES[alert.severity] || ALERT_BADGE_STYLES.info} ${alert.status === 'resolved' ? 'opacity-60' : ''}`}>
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">
-                      {alert.severity} • {alert.status}
-                    </span>
-                    <span className="text-[11px] opacity-75">
-                      {formatTime(alert.createdAt)}
-                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">{alert.severity} • {alert.status}</span>
+                    <span className="text-[11px] opacity-75">{formatTime(alert.createdAt)}</span>
                   </div>
                   <div className="text-sm font-semibold mb-1">{alert.title}</div>
-                  <p className="text-xs leading-relaxed opacity-90">
-                    {alert.message}
-                  </p>
+                  <p className="text-xs leading-relaxed opacity-90">{alert.message}</p>
                   {alert.sensorIds?.length > 0 && (
                     <div className="flex gap-1.5 mt-2">
                       {alert.sensorIds.map((id) => (
-                        <span
-                          key={id}
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/80 border border-current/20"
-                        >
+                        <span key={id} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/80 border border-current/20">
                           Station {id}
                         </span>
                       ))}
