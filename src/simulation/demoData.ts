@@ -1,4 +1,4 @@
-import {
+import type {
   AlertThresholds,
   AquaAlert,
   ChannelSegment,

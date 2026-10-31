@@ -1,14 +1,33 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import DashboardLayout from './DashboardLayout'
-function App() {
-  const [count, setCount] = useState(0)
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { PlaceholderPage } from './pages/PlaceholderPage';
+import { SensorDetailsPage } from './pages/SensorDetailsPage';
+import { SensorsIndexPage } from './pages/SensorsIndexPage';
 
+function App() {
   return (
-    <DashboardLayout/>
-  )
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <PlaceholderPage
+            title="Network Overview"
+            note="[ Dashboard — see origin/dashboard ]"
+          />
+        }
+      />
+      <Route
+        path="/map"
+        element={<PlaceholderPage title="Network Map" />}
+      />
+      <Route path="/sensors" element={<SensorsIndexPage />} />
+      <Route path="/sensors/:sensorId" element={<SensorDetailsPage />} />
+      <Route
+        path="/impact"
+        element={<PlaceholderPage title="Impact / About" />}
+      />
+      <Route path="*" element={<Navigate to="/sensors" replace />} />
+    </Routes>
+  );
 }
 
-export default App
+export default App;
