@@ -3,6 +3,7 @@ import DashboardLayout from './DashboardLayout';
 import { useLanguage } from './context/LanguageContext';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { SensorDetailsPage } from './pages/SensorDetailsPage';
+import { NetworkMap } from './pages/NetworkMap';
 import { SensorsIndexPage } from './pages/SensorsIndexPage';
 import { AboutPage } from './pages/about/AboutPage';
 
@@ -14,7 +15,7 @@ function App() {
       <Route path="/" element={<DashboardLayout />} />
       <Route
         path="/map"
-        element={<PlaceholderPage title={t('nav.map')} />}
+        element={<NetworkMap title={t('nav.map')} />}
       />
       <Route path="/sensors" element={<SensorsIndexPage />} />
       <Route path="/sensors/:sensorId" element={<SensorDetailsPage />} />
