@@ -116,11 +116,11 @@ export function SensorTelemetryChart({
       </div>
 
       {series.length === 0 ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-sm text-slate-400">
+        <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-sm text-slate-400 dark:border-slate-700 dark:bg-slate-900/75 dark:text-slate-500">
           {t('chart.waitingTelemetry')}
         </div>
       ) : (
-        <div className="relative flex min-h-0 flex-1 flex-col justify-between rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+        <div className="relative flex min-h-0 flex-1 flex-col justify-between rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700/80 dark:bg-slate-900/75">
           <svg
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             className="h-full max-h-[290px] w-full cursor-crosshair overflow-visible"
@@ -137,14 +137,14 @@ export function SensorTelemetryChart({
                     y1={y}
                     x2={chartWidth - padRight}
                     y2={y}
-                    stroke="#e2e8f0"
                     strokeDasharray="3 3"
+                    className="stroke-slate-200 dark:stroke-slate-700/80"
                   />
                   <text
                     x={padLeft - 8}
                     y={y + 4}
                     textAnchor="end"
-                    className="fill-slate-400 text-[10px]"
+                    className="fill-slate-500 text-[10px] dark:fill-slate-400"
                   >
                     {tickVal} L/s
                   </text>
@@ -168,17 +168,17 @@ export function SensorTelemetryChart({
                   y1={padTop}
                   x2={hover.x}
                   y2={padTop + innerHeight}
-                  stroke="#94a3b8"
                   strokeWidth="1"
                   strokeDasharray="4 3"
+                  className="stroke-slate-400 dark:stroke-slate-500"
                 />
                 <circle
                   cx={hover.x}
                   cy={hover.y}
                   r="5"
                   fill={color}
-                  stroke="#ffffff"
                   strokeWidth="2"
+                  className="stroke-white dark:stroke-slate-900"
                 />
               </g>
             )}
@@ -189,8 +189,8 @@ export function SensorTelemetryChart({
                 cy={lastCoord.y}
                 r="4"
                 fill={color}
-                stroke="#ffffff"
                 strokeWidth="1.5"
+                className="stroke-white dark:stroke-slate-900"
               />
             )}
 
@@ -200,7 +200,7 @@ export function SensorTelemetryChart({
                   x={padLeft}
                   y={chartHeight - 6}
                   textAnchor="start"
-                  className="fill-slate-400 text-[10px]"
+                  className="fill-slate-500 text-[10px] dark:fill-slate-400"
                 >
                   {formatTime(series[0]?.timestamp)}
                 </text>
@@ -208,7 +208,7 @@ export function SensorTelemetryChart({
                   x={padLeft + innerWidth / 2}
                   y={chartHeight - 6}
                   textAnchor="middle"
-                  className="fill-slate-400 text-[10px]"
+                  className="fill-slate-500 text-[10px] dark:fill-slate-400"
                 >
                   {formatTime(series[Math.floor(series.length / 2)]?.timestamp)}
                 </text>
@@ -216,7 +216,7 @@ export function SensorTelemetryChart({
                   x={chartWidth - padRight}
                   y={chartHeight - 6}
                   textAnchor="end"
-                  className="fill-slate-400 text-[10px]"
+                  className="fill-slate-500 text-[10px] dark:fill-slate-400"
                 >
                   {formatTime(series[series.length - 1]?.timestamp)}
                 </text>
@@ -226,41 +226,41 @@ export function SensorTelemetryChart({
 
           {hover && (
             <div
-              className="pointer-events-none absolute z-10 min-w-[140px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-md"
+              className="pointer-events-none absolute z-10 min-w-[140px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-md dark:border-slate-700 dark:bg-slate-800/95"
               style={{
                 left: `clamp(8px, calc(${(hover.x / chartWidth) * 100}% - 70px), calc(100% - 156px))`,
                 top: 12,
               }}
             >
-              <p className="font-semibold text-slate-800">
+              <p className="font-semibold text-slate-800 dark:text-slate-100">
                 {formatTime(hover.pt.timestamp)}
               </p>
-              <p className="mt-1 text-slate-600">
+              <p className="mt-1 text-slate-600 dark:text-slate-300">
                 {t('dashboard.flowLabel')}{' '}
-                <span className="font-bold text-slate-900">
+                <span className="font-bold text-slate-900 dark:text-white">
                   {hover.pt.flowRateLps.toFixed(2)} L/s
                 </span>
               </p>
-              <p className="text-slate-600">
+              <p className="text-slate-600 dark:text-slate-300">
                 {t('dashboard.levelLabel')}{' '}
-                <span className="font-bold text-slate-900">
+                <span className="font-bold text-slate-900 dark:text-white">
                   {hover.pt.waterLevelM.toFixed(3)} m
                 </span>
               </p>
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-center gap-4 border-t border-slate-200/80 pt-2 text-xs">
+          <div className="flex flex-wrap items-center justify-center gap-4 border-t border-slate-200/80 pt-2 text-xs dark:border-slate-700/80">
             <div className="flex items-center gap-1.5">
               <span
                 className="inline-block h-3 w-3 rounded-full"
                 style={{ backgroundColor: color }}
               />
-              <span className="font-medium text-slate-700">
+              <span className="font-medium text-slate-700 dark:text-slate-300">
                 {sensorId}
                 {sensorName ? ` (${sensorName})` : ''}:
               </span>
-              <span className="font-bold text-slate-900">
+              <span className="font-bold text-slate-900 dark:text-slate-100">
                 {(currentFlowLps ?? lastCoord?.pt?.flowRateLps ?? 0).toFixed(2)}{' '}
                 L/s
               </span>

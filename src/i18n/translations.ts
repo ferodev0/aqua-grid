@@ -22,6 +22,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     'nav.collapseSidebar': 'Collapse Menu',
     'nav.expandSidebar': 'Expand Menu',
     'lang.label': 'Language',
+    'theme.title': 'Theme',
+    'theme.light': 'Light',
+    'theme.dark': 'Dark',
+    'theme.system': 'System',
 
     // Demo Controls
     'demo.controlsTitle': 'Demo controls',
@@ -201,6 +205,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     'nav.collapseSidebar': 'Menüyü Daralt',
     'nav.expandSidebar': 'Menüyü Genişlet',
     'lang.label': 'Dil',
+    'theme.title': 'Tema',
+    'theme.light': 'Açık',
+    'theme.dark': 'Koyu',
+    'theme.system': 'Sistem',
 
     // Demo Controls
     'demo.controlsTitle': 'Demo Kontrolleri',
@@ -380,6 +388,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     'nav.collapseSidebar': 'Σύμπτυξη Μενού',
     'nav.expandSidebar': 'Ανάπτυξη Μενού',
     'lang.label': 'Γλώσσα',
+    'theme.title': 'Θέμα',
+    'theme.light': 'Φωτεινό',
+    'theme.dark': 'Σκοτεινό',
+    'theme.system': 'Σύστημα',
 
     // Demo Controls
     'demo.controlsTitle': 'Χειριστήρια Επίδειξης',
