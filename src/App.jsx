@@ -3,6 +3,7 @@ import DashboardLayout from './DashboardLayout';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { SensorDetailsPage } from './pages/SensorDetailsPage';
 import { SensorsIndexPage } from './pages/SensorsIndexPage';
+import { AboutPage } from './pages/about/AboutPage';
 
 function App() {
   return (
@@ -16,7 +17,7 @@ function App() {
       <Route path="/sensors/:sensorId" element={<SensorDetailsPage />} />
       <Route
         path="/impact"
-        element={<PlaceholderPage title="Impact / About" />}
+        element={<AboutPage title="Impact / About" />}
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
