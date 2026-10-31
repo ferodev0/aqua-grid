@@ -6,10 +6,10 @@ import './AboutPage.css';
 
 const DEFAULT_EN_COPY = {
   hero: {
-    kicker: 'A clearer view of every drop',
-    title: 'Observe the flow, understand the channel.',
+    kicker: 'A clear view of every drop',
+    title: 'Observe the flow, spot the crack.',
     intro:
-      'Aqua Grid is a concept for connecting water-channel observations across Lefke—helping people see what is changing, where to look closer, and what to explore next.',
+      'Aqua Grid is a concept for connecting water-channel observations across Lefke—helping local municipalities & producers to spot the water loss problems in the aqueducts and water canals.',
     tags: ['Water monitoring', 'Shared insight', 'Careful exploration'],
     mark: 'LEFKE · WATER · COMMUNITY',
     footLeft: 'THE IDEA',
@@ -17,7 +17,7 @@ const DEFAULT_EN_COPY = {
   },
   storyHeading: {
     eyebrow: 'A connected story',
-    title: 'Small observations. A clearer way forward.',
+    title: 'Deep attention, plain route.',
     body: 'Follow the channel from the challenge to the questions this project hopes to help answer.',
   },
   storyStops: aboutContent.storyStops,

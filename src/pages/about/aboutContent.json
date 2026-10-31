@@ -3,74 +3,74 @@
     {
       "number": "01",
       "eyebrow": "Why Aqua Grid",
-      "title": "One reading can’t tell the whole story.",
-      "body": "Water moves through a network of channels, but a reading from one place only shows what is happening there. Aqua Grid is a project exploring how observations from more points could help people understand the bigger picture in Lefke.",
-      "note": "A change in flow is a reason to take a closer look—not proof of what caused it.",
+      "title": "When water is lost, people and the environment feel the impact.",
+      "body": "Local producers who rely on Lefke’s historic aqueducts can be left with less water than they need. When losses along the channels go unnoticed, it becomes harder to respond in time and protect the historic fabric and surrounding environment.",
+      "note": "Aqua Grid aims to make possible water loss easier to spot so it can be investigated sooner.",
       "side": "left"
     },
     {
       "number": "02",
-      "eyebrow": "What we’re working toward",
-      "title": "Bring separate readings into one shared view.",
-      "body": "The idea is simple: place monitoring stations at useful points, bring their readings together, and make it easier to compare what is happening along the channel. If something looks unusual, people have a clearer place to start asking questions.",
-      "note": "The dashboard is a prototype. Its sensor readings are simulated, not measured in the field.",
+      "eyebrow": "Our approach",
+      "title": "Monitor water loss while respecting the aqueducts.",
+      "body": "We want to explore discreet data-collection devices that could help identify possible water loss without harming the aqueducts’ historic fabric or disrupting their surroundings.",
+      "note": "Device design and placement would need environmental review before installation.",
       "side": "right"
     },
     {
       "number": "03",
-      "eyebrow": "How it fits together",
-      "title": "Useful tools, with people in the loop.",
-      "body": "Sensors could keep watch at selected points, while a shared dashboard helps operators and decision-makers compare readings over time. The aim isn’t to replace local knowledge; it’s to give people another useful way to spot where attention may be needed.",
-      "note": "The right sensors and locations still need to be chosen through field surveys and consultation.",
+      "eyebrow": "What it could support",
+      "title": "Better questions for better decisions.",
+      "body": "Earlier visibility may help teams prioritise field inspections, make more informed water-management decisions, and build evidence for future infrastructure planning.",
+      "note": "At suitable sites, measured data could also inform a micro-hydropower feasibility study—not prove one.",
       "side": "left"
     },
     {
       "number": "04",
-      "eyebrow": "Why better visibility matters",
-      "title": "Spend less time guessing where to look.",
-      "body": "With readings from more than one place, teams could notice unusual changes sooner, prioritise field checks, and build a more useful picture for future water-management decisions.",
-      "note": "These are hoped-for benefits. They need to be tested with real data and the people who would use it.",
+      "eyebrow": "A careful next step",
+      "title": "Measure first. Expand with evidence.",
+      "body": "A real deployment would begin with people and place: consult stakeholders, survey the channel, and select a small number of appropriate pilot sites.",
+      "note": "Sensor placement, permissions, maintenance, and operating needs all require local evaluation.",
       "side": "right"
     },
     {
       "number": "05",
-      "eyebrow": "An idea to investigate",
-      "title": "Could the flow support a little clean energy?",
-      "body": "At some sites, moving water might offer a small renewable-energy opportunity. Aqua Grid treats that as a question for future study: first understand the flow and the site, then see whether further assessment makes sense.",
-      "note": "No hydropower site has been proven feasible. Measurements and technical, environmental, and operational checks would come first.",
+      "eyebrow": "The bigger picture",
+      "title": "Infrastructure that helps communities adapt.",
+      "body": "Aqua Grid is intended to explore how practical monitoring can support responsible water use, resilient local services, and carefully assessed clean-energy opportunities.",
+      "note": "These are areas of intended contribution, not achieved or certified outcomes.",
       "side": "left"
     },
     {
       "number": "06",
-      "eyebrow": "What comes next",
-      "title": "Start small, listen, and learn.",
-      "body": "A real pilot would begin by talking with local stakeholders and surveying the channel. From there, a small number of suitable sites could be selected, sensors calibrated, and real readings collected before deciding what—if anything—to expand.",
-      "note": "Permissions, maintenance, and long-term ownership would need to be part of that conversation.",
+      "eyebrow": "The bigger picture",
+      "title": "Infrastructure that helps communities adapt.",
+      "body": "Aqua Grid is intended to explore how practical monitoring can support responsible water use, resilient local services, and carefully assessed clean-energy opportunities.",
+      "note": "These are areas of intended contribution, not achieved or certified outcomes.",
       "side": "right"
     }
   ],
   "goals": [
-    ["06", "Clean water", "Help people build a clearer picture of local water conditions."],
-    ["07", "Clean energy", "Explore small-scale renewable energy only where a site is suitable."],
-    ["09", "Industry and infrastructure", "See how connected monitoring might inform infrastructure planning."],
-    ["11", "Sustainable communities", "Support conversations about more resilient local services."],
-    ["12", "Responsible resource use", "Make it easier to ask how water and infrastructure are being used."],
-    ["13", "Climate action", "Explore ideas that could support local resilience over time."]
+    ["06", "Clean water", "Support better observation and management of water resources."],
+    ["07", "Clean energy", "Explore renewable energy recovery where appropriate."],
+    ["09", "Resilient infrastructure", "Use digital monitoring to inform infrastructure decisions."],
+    ["11", "Sustainable communities", "Support resilient local services and planning."],
+    ["12", "Responsible resource use", "Encourage more informed use of water and infrastructure."],
+    ["13", "Climate action", "Explore local resilience and renewable-energy opportunities."]
   ],
   "roadmap": [
-    "Talk with local stakeholders and survey the channel",
-    "Choose a few suitable locations for a pilot",
-    "Install and calibrate sensors, then collect real readings",
-    "Check whether the readings are useful in day-to-day decisions",
-    "Study energy potential at suitable sites",
-    "Decide together whether expansion is worthwhile"
+    "Survey the channel and consult local stakeholders",
+    "Select suitable sites for a small sensor pilot",
+    "Install, calibrate, and collect real-world data",
+    "Evaluate anomalies and operational usefulness",
+    "Assess hydropower feasibility at selected sites",
+    "Consider expansion with evidence and approval"
   ],
   "localized": {
     "tr": {
       "hero": {
-        "kicker": "Her damlanın daha net görünümü",
-        "title": "Akışı izleyin, kanalı anlayın.",
-        "intro": "Aqua Grid, Lefke genelindeki su kanalı gözlemlerini birbirine bağlayan bir konsepttir; nelerin değiştiğini, nereye daha yakından bakılması gerektiğini ve bir sonraki adımı görmeye yardımcı olur.",
+        "kicker": "Her damlanın net görünümü",
+        "title": "Akışı izleyin, çatlağı fark edin.",
+        "intro": "Aqua Grid, Lefke genelindeki su kanalı gözlemlerini birbirine bağlayan bir konsepttir; yerel belediyelerin ve üreticilerin su kemerleri ile kanallardaki su kaybı sorunlarını tespit etmesine yardımcı olur.",
         "tags": ["Su izleme", "Ortak içgörü", "Dikkatli inceleme"],
         "mark": "LEFKE · SU · TOPLUM",
         "footLeft": "FİKİR",
@@ -78,56 +78,56 @@
       },
       "storyHeading": {
         "eyebrow": "Bağlantılı bir hikâye",
-        "title": "Küçük gözlemler. Daha net bir yol haritası.",
+        "title": "Derin dikkat, yalın rota.",
         "body": "Karşılaşılan zorluktan bu projenin yanıtlamaya yardımcı olmayı umduğu sorulara kadar kanalı takip edin."
       },
       "storyStops": [
         {
           "number": "01",
           "eyebrow": "Neden Aqua Grid",
-          "title": "Tek bir ölçüm tüm hikâyeyi anlatamaz.",
-          "body": "Su bir kanal ağı boyunca ilerler, ancak tek bir noktadan alınan ölçüm yalnızca orada ne olduğunu gösterir. Aqua Grid, Lefke’de birden fazla noktadan alınan gözlemlerin büyük resmi anlamaya nasıl yardımcı olabileceğini araştırır.",
-          "note": "Debideki bir değişim daha yakından bakmak için bir nedendir — buna neyin sebep olduğunun kanıtı değildir.",
+          "title": "Su kaybedildiğinde etkisini insanlar ve çevre hisseder.",
+          "body": "Lefke’nin tarihi su kemerlerine güvenen yerel üreticiler ihtiyaç duyduklarından daha az suyla kalabilir. Kanallar boyunca yaşanan kayıplar fark edilmediğinde zamanında müdahale etmek, tarihi dokuyu ve çevreyi korumak zorlaşır.",
+          "note": "Aqua Grid, olası su kayıplarını daha erken incelenebilmesi için daha kolay fark edilir kılmayı amaçlar.",
           "side": "left"
         },
         {
           "number": "02",
-          "eyebrow": "Hedefimiz",
-          "title": "Ayrı ölçümleri tek bir ortak görünümde birleştirmek.",
-          "body": "Fikir basittir: uygun noktalara izleme istasyonları yerleştirmek, ölçümleri bir araya getirmek ve kanal boyunca neler olup bittiğini karşılaştırmayı kolaylaştırmak.",
-          "note": "Kontrol paneli bir prototiptir. Sensör verileri sahada ölçülmemiş, simüle edilmiştir.",
+          "eyebrow": "Yaklaşımımız",
+          "title": "Su kemerlerine saygı duyarak su kaybını izleyin.",
+          "body": "Su kemerlerinin tarihi dokusuna zarar vermeden veya çevresini bozmadan olası su kaybını belirlemeye yardımcı olabilecek özenli veri toplama cihazlarını araştırmak istiyoruz.",
+          "note": "Cihaz tasarımı ve yerleşimi kurulum öncesinde çevresel değerlendirme gerektirir.",
           "side": "right"
         },
         {
           "number": "03",
-          "eyebrow": "Nasıl bütünleşir",
-          "title": "İnsanı merkezde tutan kullanışlı araçlar.",
-          "body": "Sensörler seçilen noktaları izlerken, ortak panel operatörlerin ve karar vericilerin ölçümleri zaman içinde karşılaştırmasına yardımcı olur. Amaç yerel bilginin yerini almak değil, dikkat gerektiren noktaları fark etmek için ek bir araç sunmaktır.",
-          "note": "Doğru sensörler ve konumlar saha etütleri ve paydaş görüşmeleriyle belirlenmelidir.",
+          "eyebrow": "Neleri destekleyebilir",
+          "title": "Daha iyi kararlar için daha doğru sorular.",
+          "body": "Erken görünürlük, ekiplerin saha incelemelerini önceliklendirmesine, daha bilinçli su yönetimi kararları almasına ve gelecekteki altyapı planlaması için kanıt oluşturmasına yardımcı olabilir.",
+          "note": "Uygun noktalarda ölçülen veriler mikro-hidroelektrik fizibilite çalışmasına da ışık tutabilir — ancak tek başına kanıt oluşturmaz.",
           "side": "left"
         },
         {
           "number": "04",
-          "eyebrow": "Görünürlük neden önemli",
-          "title": "Nereye bakılacağını tahmin etmekle daha az zaman harcayın.",
-          "body": "Birden fazla noktadan alınan verilerle ekipler olağandışı değişimleri daha erken fark edebilir, saha kontrollerini önceliklendirebilir ve gelecekteki su yönetimi kararları için daha güçlü bir tablo oluşturabilir.",
-          "note": "Bunlar hedeflenen faydalardır; gerçek veriler ve kullanıcılarla test edilmelidir.",
+          "eyebrow": "Dikkatli bir sonraki adım",
+          "title": "Önce ölçün. Kanıtla genişletin.",
+          "body": "Gerçek bir uygulama insan ve mekânla başlar: paydaşlara danışın, kanalı etüt edin ve az sayıda uygun pilot nokta seçin.",
+          "note": "Sensör yerleşimi, izinler, bakım ve işletme ihtiyaçlarının tümü yerel değerlendirme gerektirir.",
           "side": "right"
         },
         {
           "number": "05",
-          "eyebrow": "Araştırılacak bir fikir",
-          "title": "Su akışı küçük ölçekli temiz enerji sağlayabilir mi?",
-          "body": "Bazı noktalarda akan su küçük bir yenilenebilir enerji fırsatı sunabilir. Aqua Grid bunu gelecekteki bir çalışma sorusu olarak ele alır: önce akışı ve sahayı anlayın, ardından kapsamlı değerlendirmenin anlamlı olup olmadığına bakın.",
-          "note": "Hiçbir hidroelektrik noktasının fizibilitesi kanıtlanmamıştır. Ölçümler ile teknik, çevresel ve operasyonel kontroller önceliklidir.",
+          "eyebrow": "Büyük resim",
+          "title": "Toplulukların uyum sağlamasına yardımcı olan altyapı.",
+          "body": "Aqua Grid, pratik izlemenin sorumlu su kullanımını, dayanıklı yerel hizmetleri ve dikkatle değerlendirilen temiz enerji fırsatlarını nasıl destekleyebileceğini araştırmayı amaçlar.",
+          "note": "Bunlar ulaşılmış veya belgelenmiş sonuçlar değil, hedeflenen katkı alanlarıdır.",
           "side": "left"
         },
         {
           "number": "06",
-          "eyebrow": "Sıradaki adım",
-          "title": "Küçük başlayın, dinleyin ve öğrenin.",
-          "body": "Gerçek bir pilot uygulama yerel paydaşlarla görüşerek ve kanalı etüt ederek başlar. Ardından az sayıda uygun nokta seçilir, sensörler kalibre edilir ve genişletme kararından önce gerçek veriler toplanır.",
-          "note": "İzinler, bakım ve uzun vadeli sahiplik bu sürecin bir parçası olmalıdır.",
+          "eyebrow": "Büyük resim",
+          "title": "Toplulukların uyum sağlamasına yardımcı olan altyapı.",
+          "body": "Aqua Grid, pratik izlemenin sorumlu su kullanımını, dayanıklı yerel hizmetleri ve dikkatle değerlendirilen temiz enerji fırsatlarını nasıl destekleyebileceğini araştırmayı amaçlar.",
+          "note": "Bunlar ulaşılmış veya belgelenmiş sonuçlar değil, hedeflenen katkı alanlarıdır.",
           "side": "right"
         }
       ],
@@ -137,12 +137,12 @@
         "body": "Proje, Birleşmiş Milletler Sürdürülebilir Kalkınma Amaçları ile olan bağlantıları araştırır. Bunlar kanıtlanmış etkiyi değil, hedeflenen katkıyı ifade eder."
       },
       "goals": [
-        ["06", "Temiz su ve sanitasyon", "Yerel su koşullarına dair daha net bir tablo oluşturulmasına destek olmak."],
-        ["07", "Erişilebilir ve temiz enerji", "Yalnızca uygun sahalarda küçük ölçekli yenilenebilir enerji potansiyelini araştırmak."],
-        ["09", "Sanayi, yenilikçilik ve altyapı", "Bağlantılı izlemenin altyapı planlamasını nasıl destekleyebileceğini görmek."],
-        ["11", "Sürdürülebilir şehirler ve topluluklar", "Daha dayanıklı yerel hizmetler üzerine yürütülen çalışmaları desteklemek."],
-        ["12", "Sorumlu üretim ve tüketim", "Su ve altyapı kaynaklarının nasıl kullanıldığını sorgulamayı kolaylaştırmak."],
-        ["13", "İklim eylemi", "Zaman içinde yerel dayanıklılığı destekleyebilecek fikirleri araştırmak."]
+        ["06", "Temiz su", "Su kaynaklarının daha iyi gözlemlenmesini ve yönetilmesini desteklemek."],
+        ["07", "Temiz enerji", "Uygun yerlerde yenilenebilir enerji geri kazanımını araştırmak."],
+        ["09", "Dayanıklı altyapı", "Altyapı kararlarını desteklemek için dijital izlemeden yararlanmak."],
+        ["11", "Sürdürülebilir topluluklar", "Dayanıklı yerel hizmetleri ve planlamayı desteklemek."],
+        ["12", "Sorumlu kaynak kullanımı", "Su ve altyapının daha bilinçli kullanımını teşvik etmek."],
+        ["13", "İklim eylemi", "Yerel dayanıklılık ve yenilenebilir enerji fırsatlarını araştırmak."]
       ],
       "nextHeading": {
         "eyebrow": "Konseptten saha çalışmasına",
@@ -150,12 +150,12 @@
         "body": "Sorumlu bir sonraki adım ölçülü bir adımdır. Yerel bilgi ve onay merkezde olacak şekilde her aşama bir sonrakine rehberlik etmelidir."
       },
       "roadmap": [
-        "Yerel paydaşlarla görüşün ve kanalda saha etüdü yapın",
-        "Pilot uygulama için birkaç uygun nokta seçin",
-        "Sensörleri kurun, kalibre edin ve gerçek ölçümler toplayın",
-        "Ölçümlerin günlük kararlarda faydalı olup olmadığını değerlendirin",
-        "Uygun noktalarda enerji potansiyelini inceleyin",
-        "Genişletmenin anlamlı olup olmadığına birlikte karar verin"
+        "Kanalda saha etüdü yapın ve yerel paydaşlara danışın",
+        "Küçük ölçekli sensör pilotu için uygun noktaları seçin",
+        "Sensörleri kurun, kalibre edin ve gerçek saha verileri toplayın",
+        "Anomalileri ve operasyonel faydayı değerlendirin",
+        "Seçilen noktalarda hidroelektrik fizibilitesini inceleyin",
+        "Kanıt ve onayla birlikte genişletmeyi değerlendirin"
       ],
       "prototypeNote": {
         "title": "Canlı bir izleme sistemi değil, bir konsept.",
@@ -165,9 +165,9 @@
     },
     "el": {
       "hero": {
-        "kicker": "Μια καθαρότερη εικόνα για κάθε σταγόνα",
-        "title": "Παρατηρήστε τη ροή, κατανοήστε το κανάλι.",
-        "intro": "Το Aqua Grid είναι μια ιδέα για τη σύνδεση παρατηρήσεων στα κανάλια νερού της Λεύκας—βοηθώντας τους ανθρώπους να δουν τι αλλάζει, πού να εστιάσουν και τι να διερευνήσουν στη συνέχεια.",
+        "kicker": "Μια καθαρή εικόνα για κάθε σταγόνα",
+        "title": "Παρατηρήστε τη ροή, εντοπίστε τη διαρροή.",
+        "intro": "Το Aqua Grid είναι μια ιδέα για τη σύνδεση παρατηρήσεων στα κανάλια νερού της Λεύκας—βοηθώντας την τοπική αυτοδιοίκηση και τους παραγωγούς να εντοπίζουν προβλήματα απώλειας νερού στα υδραγωγεία και τα κανάλια.",
         "tags": ["Παρακολούθηση νερού", "Κοινή εικόνα", "Προσεκτική διερεύνηση"],
         "mark": "ΛΕΥΚΑ · ΝΕΡΟ · ΚΟΙΝΟΤΗΤΑ",
         "footLeft": "Η ΙΔΕΑ",
@@ -175,56 +175,56 @@
       },
       "storyHeading": {
         "eyebrow": "Μια συνδεδεμένη ιστορία",
-        "title": "Μικρές παρατηρήσεις. Ένας σαφέστερος δρόμος μπροστά.",
+        "title": "Βαθιά προσοχή, καθαρή διαδρομή.",
         "body": "Ακολουθήστε το κανάλι από την πρόκληση έως τα ερωτήματα που φιλοδοξεί να βοηθήσει να απαντηθούν αυτό το έργο."
       },
       "storyStops": [
         {
           "number": "01",
           "eyebrow": "Γιατί Aqua Grid",
-          "title": "Μία μέτρηση δεν μπορεί να πει όλη την ιστορία.",
-          "body": "Το νερό κινείται μέσα από ένα δίκτυο καναλιών, αλλά μια μέτρηση από ένα σημείο δείχνει μόνο τι συμβαίνει εκεί. Το Aqua Grid εξετάζει πώς οι παρατηρήσεις από περισσότερα σημεία μπορούν να βοηθήσουν στην κατανόηση της συνολικής εικόνας στη Λεύκα.",
-          "note": "Μια αλλαγή στη ροή είναι λόγος για περαιτέρω έλεγχο—όχι απόδειξη της αιτίας της.",
+          "title": "Όταν χάνεται νερό, οι άνθρωποι και το περιβάλλον νιώθουν τον αντίκτυπο.",
+          "body": "Οι τοπικοί παραγωγοί που βασίζονται στα ιστορικά υδραγωγεία της Λεύκας μπορεί να μείνουν με λιγότερο νερό από όσο χρειάζονται. Όταν οι απώλειες περνούν απαρατήρητες, γίνεται δυσκολότερη η έγκαιρη αντίδραση και η προστασία του ιστορικού ιστού.",
+          "note": "Το Aqua Grid στοχεύει να κάνει την πιθανή απώλεια νερού πιο εύκολα ορατή ώστε να διερευνάται νωρίτερα.",
           "side": "left"
         },
         {
           "number": "02",
-          "eyebrow": "Προς τι εργαζόμαστε",
-          "title": "Συγκέντρωση ξεχωριστών μετρήσεων σε μία κοινή προβολή.",
-          "body": "Η ιδέα είναι απλή: τοποθέτηση σταθμών παρακολούθησης σε χρήσιμα σημεία, συγκέντρωση των μετρήσεων και ευκολότερη σύγκριση κατά μήκος του καναλιού.",
-          "note": "Ο πίνακας ελέγχου είναι πρωτότυπο. Οι μετρήσεις των αισθητήρων είναι προσομοιωμένες και όχι πραγματικές.",
+          "eyebrow": "Η προσέγγισή μας",
+          "title": "Παρακολούθηση απώλειας νερού με σεβασμό στα υδραγωγεία.",
+          "body": "Θέλουμε να εξετάσουμε διακριτικές συσκευές συλλογής δεδομένων που θα βοηθούν στον εντοπισμό πιθανής απώλειας νερού χωρίς να βλάπτουν την ιστορική δομή των υδραγωγείων.",
+          "note": "Ο σχεδιασμός και η τοποθέτηση των συσκευών απαιτούν περιβαλλοντική αξιολόγηση πριν από την εγκατάσταση.",
           "side": "right"
         },
         {
           "number": "03",
-          "eyebrow": "Πώς συνδέονται όλα",
-          "title": "Χρήσιμα εργαλεία, με τον άνθρωπο στο επίκεντρο.",
-          "body": "Οι αισθητήρες μπορούν να παρακολουθούν επιλεγμένα σημεία, ενώ ένας κοινός πίνακας βοηθά τους χειριστές να συγκρίνουν μετρήσεις στον χρόνο. Στόχος δεν είναι η αντικατάσταση της τοπικής γνώσης, αλλά η ενίσχυσή της.",
-          "note": "Οι κατάλληλοι αισθητήρες και τοποθεσίες πρέπει να επιλεγούν μέσω επιτόπιων μελετών και διαβούλευσης.",
+          "eyebrow": "Τι θα μπορούσε να υποστηρίξει",
+          "title": "Καλύτερα ερωτήματα για καλύτερες αποφάσεις.",
+          "body": "Η έγκαιρη ορατότητα μπορεί να βοηθήσει τις ομάδες να ιεραρχήσουν τους επιτόπιους ελέγχους, να λάβουν πιο τεκμηριωμένες αποφάσεις διαχείρισης νερού και να χτίσουν στοιχεία για μελλοντικό σχεδιασμό.",
+          "note": "Σε κατάλληλα σημεία, τα δεδομένα θα μπορούσαν επίσης να τροφοδοτήσουν μια μελέτη σκοπιμότητας μικρο-υδροηλεκτρικού.",
           "side": "left"
         },
         {
           "number": "04",
-          "eyebrow": "Γιατί έχει σημασία η ορατότητα",
-          "title": "Λιγότερος χρόνος σε εικασίες για το πού να κοιτάξετε.",
-          "body": "Με μετρήσεις από περισσότερα σημεία, οι ομάδες μπορούν να εντοπίζουν ασυνήθιστες αλλαγές νωρίτερα, να ιεραρχούν επιτόπιους ελέγχους και να υποστηρίζουν καλύτερα τις αποφάσεις διαχείρισης νερού.",
-          "note": "Αυτά είναι προσδοκώμενα οφέλη που πρέπει να δοκιμαστούν με πραγματικά δεδομένα.",
+          "eyebrow": "Ένα προσεκτικό επόμενο βήμα",
+          "title": "Μετρήστε πρώτα. Επεκταθείτε με τεκμήρια.",
+          "body": "Μια πραγματική εφαρμογή ξεκινά με τους ανθρώπους και τον τόπο: διαβούλευση με τους φορείς, αποτύπωση του καναλιού και επιλογή λίγων κατάλληλων πιλοτικών σημείων.",
+          "note": "Η τοποθέτηση αισθητήρων, οι άδειες, η συντήρηση και οι λειτουργικές ανάγκες απαιτούν τοπική αξιολόγηση.",
           "side": "right"
         },
         {
           "number": "05",
-          "eyebrow": "Μια ιδέα προς διερεύνηση",
-          "title": "Θα μπορούσε η ροή να υποστηρίξει λίγη καθαρή ενέργεια;",
-          "body": "Σε ορισμένα σημεία, το τρεχούμενο νερό θα μπορούσε να προσφέρει μια μικρή ευκαιρία ανανεώσιμης ενέργειας. Το Aqua Grid το αντιμετωπίζει ως ερώτημα προς μελλοντική μελέτη.",
-          "note": "Καμία τοποθεσία υδροηλεκτρικής ενέργειας δεν έχει αποδειχθεί εφικτή. Προηγούνται μετρήσεις και τεχνικοί/περιβαλλοντικοί έλεγχοι.",
+          "eyebrow": "Η συνολική εικόνα",
+          "title": "Υποδομές που βοηθούν τις κοινότητες να προσαρμόζονται.",
+          "body": "Το Aqua Grid διερευνά πώς η πρακτική παρακολούθηση μπορεί να υποστηρίξει την υπεύθυνη χρήση νερού, τις ανθεκτικές τοπικές υπηρεσίες και τις προσεκτικά αξιολογημένες ευκαιρίες καθαρής ενέργειας.",
+          "note": "Αυτοί είναι τομείς επιδιωκόμενης συμβολής, όχι επιτευχθέντα ή πιστοποιημένα αποτελέσματα.",
           "side": "left"
         },
         {
           "number": "06",
-          "eyebrow": "Τα επόμενα βήματα",
-          "title": "Ξεκινήστε μικρά, ακούστε και μάθετε.",
-          "body": "Ένα πραγματικό πιλοτικό έργο θα ξεκινούσε με συζήτηση με τους τοπικούς φορείς και αποτύπωση του καναλιού, επιλογή λίγων σημείων, βαθμονόμηση αισθητήρων και συλλογή πραγματικών μετρήσεων.",
-          "note": "Οι άδειες, η συντήρηση και η μακροπρόθεσμη διαχείριση αποτελούν μέρος αυτής της συζήτησης.",
+          "eyebrow": "Η συνολική εικόνα",
+          "title": "Υποδομές που βοηθούν τις κοινότητες να προσαρμόζονται.",
+          "body": "Το Aqua Grid διερευνά πώς η πρακτική παρακολούθηση μπορεί να υποστηρίξει την υπεύθυνη χρήση νερού, τις ανθεκτικές τοπικές υπηρεσίες και τις προσεκτικά αξιολογημένες ευκαιρίες καθαρής ενέργειας.",
+          "note": "Αυτοί είναι τομείς επιδιωκόμενης συμβολής, όχι επιτευχθέντα ή πιστοποιημένα αποτελέσματα.",
           "side": "right"
         }
       ],
@@ -234,12 +234,12 @@
         "body": "Το έργο διερευνά συνδέσεις με τους Στόχους Βιώσιμης Ανάπτυξης του ΟΗΕ. Περιγράφουν πρόθεση—όχι απόδειξη αντικτύπου."
       },
       "goals": [
-        ["06", "Καθαρό νερό", "Συμβολή σε μια σαφέστερη εικόνα των τοπικών συνθηκών νερού."],
-        ["07", "Καθαρή ενέργεια", "Διερεύνηση μικρής κλίμακας ανανεώσιμης ενέργειας μόνο όπου είναι κατάλληλο."],
-        ["09", "Βιομηχανία και υποδομές", "Πώς η συνδεδεμένη παρακολούθηση μπορεί να ενημερώσει τον σχεδιασμό υποδομών."],
-        ["11", "Βιώσιμες κοινότητες", "Υποστήριξη συζητήσεων για πιο ανθεκτικές τοπικές υπηρεσίες."],
-        ["12", "Υπεύθυνη χρήση πόρων", "Διευκόλυνση της κατανόησης του τρόπου χρήσης του νερού και των υποδομών."],
-        ["13", "Δράση για το κλίμα", "Διερεύνηση ιδεών που ενισχύουν την τοπική ανθεκτικότητα στον χρόνο."]
+        ["06", "Καθαρό νερό", "Υποστήριξη καλύτερης παρατήρησης και διαχείρισης των υδατικών πόρων."],
+        ["07", "Καθαρή ενέργεια", "Διερεύνηση ανάκτησης ανανεώσιμης ενέργειας όπου είναι κατάλληλο."],
+        ["09", "Ανθεκτικές υποδομές", "Χρήση ψηφιακής παρακολούθησης για την τεκμηρίωση αποφάσεων υποδομής."],
+        ["11", "Βιώσιμες κοινότητες", "Υποστήριξη ανθεκτικών τοπικών υπηρεσιών και σχεδιασμού."],
+        ["12", "Υπεύθυνη χρήση πόρων", "Ενθάρρυνση πιο ενημερωμένης χρήσης νερού και υποδομών."],
+        ["13", "Δράση για το κλίμα", "Διερεύνηση τοπικής ανθεκτικότητας και ευκαιριών ανανεώσιμης ενέργειας."]
       ],
       "nextHeading": {
         "eyebrow": "Από την ιδέα στην πράξη",
@@ -247,12 +247,12 @@
         "body": "Ένα υπεύθυνο επόμενο βήμα είναι ένα μετρημένο βήμα, με την τοπική γνώση και έγκριση στο επίκεντρο."
       },
       "roadmap": [
-        "Συζήτηση με τοπικούς φορείς και αποτύπωση του καναλιού",
-        "Επιλογή μερικών κατάλληλων σημείων για πιλοτική εφαρμογή",
-        "Εγκατάσταση και βαθμονόμηση αισθητήρων, συλλογή πραγματικών μετρήσεων",
-        "Αξιολόγηση της χρησιμότητας των μετρήσεων στις καθημερινές αποφάσεις",
-        "Μελέτη ενεργειακού δυναμικού σε κατάλληλα σημεία",
-        "Κοινή απόφαση για το αν αξίζει η επέκταση"
+        "Αποτύπωση του καναλιού και διαβούλευση με τοπικούς φορείς",
+        "Επιλογή κατάλληλων σημείων για μικρό πιλοτικό έργο αισθητήρων",
+        "Εγκατάσταση, βαθμονόμηση και συλλογή πραγματικών δεδομένων",
+        "Αξιολόγηση αποκλίσεων και επιχειρησιακής χρησιμότητας",
+        "Εκτίμηση σκοπιμότητας υδροηλεκτρικής ενέργειας σε επιλεγμένα σημεία",
+        "Εξέταση επέκτασης με τεκμήρια και έγκριση"
       ],
       "prototypeNote": {
         "title": "Μια ιδέα, όχι ένα ζωντανό σύστημα παρακολούθησης.",
