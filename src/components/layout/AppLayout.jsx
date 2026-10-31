@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useNetwork } from '../../context/NetworkContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { DemoControls } from '../sensors/DemoControls';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 const NAV_ITEMS = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    labelKey: 'nav.dashboard',
     to: '/',
     match: (pathname) => pathname === '/',
     icon: (
@@ -20,7 +22,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'map',
-    label: 'Network Map',
+    labelKey: 'nav.map',
     to: '/map',
     match: (pathname) => pathname.startsWith('/map'),
     icon: (
@@ -34,21 +36,42 @@ const NAV_ITEMS = [
   },
   {
     id: 'sensors',
-    label: 'Sensors',
+    labelKey: 'nav.sensors',
     to: '/sensors',
     match: (pathname) => pathname.startsWith('/sensors'),
     icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M13 10V3L4 14h7v7l9-11h-7z"
-      />
+      <>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M8.5 8.5a5 5 0 000 7"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M5.5 5.5a9.5 9.5 0 000 13"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15.5 8.5a5 5 0 010 7"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M18.5 5.5a9.5 9.5 0 010 13"
+        />
+      </>
     ),
   },
   {
     id: 'impact',
-    label: 'Impact / About',
+    labelKey: 'nav.impact',
     to: '/impact',
     match: (pathname) => pathname.startsWith('/impact'),
     icon: (
@@ -65,10 +88,10 @@ const NAV_ITEMS = [
 /**
  * Shared shell adapted from origin/dashboard DashboardLayout design language.
  */
-export function AppLayout({ title, children }) {
+export function AppLayout({ title, children, denseHeader = false }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { pathname } = useLocation();
-  const { demoBannerText } = useNetwork();
+  const { t } = useLanguage();
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-800">
@@ -85,13 +108,15 @@ export function AppLayout({ title, children }) {
                 : 'w-0 text-[0px] opacity-0'
             }`}
           >
-            Aqua Grid
+            {t('app.title')}
           </h1>
           <button
             type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-teal-600 focus:outline-none"
-            title={isSidebarOpen ? 'Menüyü Daralt' : 'Menüyü Genişlet'}
+            title={
+              isSidebarOpen ? t('nav.collapseSidebar') : t('nav.expandSidebar')
+            }
           >
             <svg
               className="h-6 w-6"
@@ -121,11 +146,12 @@ export function AppLayout({ title, children }) {
         <nav className="flex flex-1 flex-col gap-2 overflow-x-hidden px-3">
           {NAV_ITEMS.map((item) => {
             const active = item.match(pathname);
+            const label = t(item.labelKey);
             return (
               <NavLink
                 key={item.id}
                 to={item.to}
-                title={item.label}
+                title={label}
                 className={`flex items-center gap-4 whitespace-nowrap rounded-lg border px-3 py-3 text-left transition-all ${
                   active
                     ? isSidebarOpen
@@ -149,7 +175,7 @@ export function AppLayout({ title, children }) {
                     isSidebarOpen ? 'opacity-100' : 'hidden opacity-0'
                   }`}
                 >
-                  {item.label}
+                  {label}
                 </span>
               </NavLink>
             );
@@ -157,13 +183,21 @@ export function AppLayout({ title, children }) {
         </nav>
 
         <DemoControls collapsed={!isSidebarOpen} />
+        <ThemeSwitcher collapsed={!isSidebarOpen} />
       </aside>
 
       <main className="flex flex-1 flex-col overflow-y-auto p-6">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <header
+          className={`flex flex-wrap items-center justify-between gap-3 ${
+            denseHeader ? 'mb-3' : 'mb-8'
+          }`}
+        >
           <h2 className="text-2xl font-semibold text-slate-800">{title}</h2>
-          <div className="rounded border border-amber-300 bg-amber-100 px-4 py-1.5 text-sm font-bold tracking-wide text-amber-700 shadow-sm">
-            {demoBannerText}
+          <div className="flex flex-wrap items-center gap-3">
+            <LanguageSwitcher />
+            <div className="rounded border border-amber-300 bg-amber-100 px-4 py-1.5 text-sm font-bold tracking-wide text-amber-700 shadow-sm">
+              {t('app.demoBanner')}
+            </div>
           </div>
         </header>
         {children}

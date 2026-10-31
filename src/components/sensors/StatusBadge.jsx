@@ -1,19 +1,22 @@
+import { useLanguage } from '../../context/LanguageContext';
+
+/** Matches DashboardLayout STATUS_BADGE_STYLES */
 const STATUS_STYLES = {
-  normal: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  warning: 'bg-amber-50 text-amber-700 border-amber-200',
-  critical: 'bg-red-50 text-red-700 border-red-200',
-  offline: 'bg-slate-100 text-slate-500 border-slate-200',
+  normal: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  warning: 'bg-amber-100 text-amber-800 border-amber-300',
+  critical: 'bg-red-100 text-red-700 border-red-300',
+  offline: 'bg-slate-200 text-slate-600 border-slate-300',
 };
 
 export function StatusBadge({ status = 'normal' }) {
+  const { t } = useLanguage();
   const style = STATUS_STYLES[status] ?? STATUS_STYLES.offline;
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${style}`}
+      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold uppercase ${style}`}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
-      {status}
+      {t(`status.${status}`)}
     </span>
   );
 }

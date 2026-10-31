@@ -1,16 +1,48 @@
-# React + Vite
+# Aqua Grid
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Every Drop Counts. Every Flow Matters.**
 
-Currently, two official plugins are available:
+Web prototype for monitoring water channels around Lefke, Cyprus. Distributed sensors (simulated) help operators see flow changes and explore illustrative micro-hydropower potential.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+> Demo only — **simulated data**, not real Lefke measurements.
 
-## React Compiler
+## What it does
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Monitor channel stations (level, flow, status)
+- Flag unusual upstream/downstream reductions for inspection
+- Estimate illustrative micro-hydro potential: `P = ρ · g · Q · H · η`
 
-## Expanding the ESLint configuration
+Water delivery stays the primary purpose of the channel. Alerts mean **inspection recommended**, not leak confirmed.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Pages
+
+| Route | Page |
+| --- | --- |
+| `/` | Dashboard |
+| `/map` | Network Map |
+| `/sensors` | Sensor list |
+| `/sensors/:sensorId` | Sensor details |
+| `/impact` | Impact / About |
+
+Label: **DEMO MODE — SIMULATED SENSOR DATA**
+
+## Stack
+
+React · Vite · Tailwind CSS · React Router · shared client simulation
+
+## Run
+
+```bash
+npm install
+npm run dev
+```
+
+```bash
+npm run build
+```
+
+## Notes
+
+- All pages share one simulation state
+- Crisis/reset controls are for demo scenarios
+- Spec: `Aqua_Grid_Agent_Development_Specification.md`

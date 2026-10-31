@@ -2,12 +2,14 @@ import { deriveSensorStatus, evaluateNetworkAlerts } from "./alertRules";
 import type {
   AlertThresholds,
   AquaAlert,
+  AreaSensorGroup,
   ChannelSegment,
   HydropowerEstimateInput,
   HydropowerEstimateResult,
   NetworkSummaryMetrics,
   Sensor,
   TelemetryPoint,
+  VillageSensorGroup,
 } from "./types";
 
 export const SIMULATION_TICK_INTERVAL_MS = 2500;
@@ -288,4 +290,92 @@ export function computeNetworkSummaryMetrics(
     terminalSensorId: terminalSensor?.id ?? "S04",
     illustrativePowerPotentialWatts: hydroEstimate.powerWatts,
   };
+}
+
+/**
+ * Groups sensors by their village name.
+ */
+export function groupSensorsByVillage(
+  sensors: Sensor[]
+): Record<string, Sensor[]> {
+  return sensors.reduce<Record<string, Sensor[]>>((acc, sensor) => {
+    const village = sensor.village || sensor.location?.village || "Lefke";
+    if (!acc[village]) {
+      acc[village] = [];
+    }
+    acc[village].push(sensor);
+    return acc;
+  }, {});
+}
+
+/**
+ * Groups sensors by their area name.
+ */
+export function groupSensorsByArea(
+  sensors: Sensor[]
+): Record<string, Sensor[]> {
+  return sensors.reduce<Record<string, Sensor[]>>((acc, sensor) => {
+    const area = sensor.area || sensor.location?.area || "General Area";
+    if (!acc[area]) {
+      acc[area] = [];
+    }
+    acc[area].push(sensor);
+    return acc;
+  }, {});
+}
+
+/**
+ * Nested grouping of sensors by village -> area -> Sensor[].
+ */
+export function groupSensorsByVillageAndArea(
+  sensors: Sensor[]
+): Record<string, Record<string, Sensor[]>> {
+  return sensors.reduce<Record<string, Record<string, Sensor[]>>>(
+    (acc, sensor) => {
+      const village = sensor.village || sensor.location?.village || "Lefke";
+      const area = sensor.area || sensor.location?.area || "General Area";
+      if (!acc[village]) {
+        acc[village] = {};
+      }
+      if (!acc[village][area]) {
+        acc[village][area] = [];
+      }
+      acc[village][area].push(sensor);
+      return acc;
+    },
+    {}
+  );
+}
+
+/**
+ * Builds structured VillageSensorGroup array (village -> areas -> sensors)
+ * with active and attention counts precomputed for UI rendering.
+ */
+export function buildVillageSensorGroups(
+  sensors: Sensor[]
+): VillageSensorGroup[] {
+  const byVillageAndArea = groupSensorsByVillageAndArea(sensors);
+
+  return Object.entries(byVillageAndArea).map(([village, areaMap]) => {
+    const areas: AreaSensorGroup[] = Object.entries(areaMap).map(
+      ([area, areaSensors]) => ({
+        area,
+        village,
+        sensors: areaSensors,
+        activeCount: areaSensors.filter((s) => s.status !== "offline").length,
+        attentionCount: areaSensors.filter((s) => s.status !== "normal").length,
+      })
+    );
+
+    const villageSensors = areas.flatMap((a) => a.sensors);
+
+    return {
+      village,
+      sensors: villageSensors,
+      areas,
+      activeCount: villageSensors.filter((s) => s.status !== "offline").length,
+      attentionCount: villageSensors.filter((s) => s.status !== "normal")
+        .length,
+    };
+  });
 }
