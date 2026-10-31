@@ -5,6 +5,7 @@ import { SensorDeviceMetadataModal } from '../components/sensors/SensorDeviceMet
 import { SensorEventsPanel } from '../components/sensors/SensorEventsPanel';
 import { SensorTelemetryChart } from '../components/sensors/SensorTelemetryChart';
 import { StatusBadge } from '../components/sensors/StatusBadge';
+import { useLanguage } from '../context/LanguageContext';
 import { useNetwork } from '../context/NetworkContext';
 
 function formatUpdatedAt(iso) {
@@ -17,6 +18,7 @@ export function SensorDetailsPage() {
   const { sensorId } = useParams();
   const [range, setRange] = useState('24h');
   const [metadataOpen, setMetadataOpen] = useState(false);
+  const { t, tSensorName, tSensorLocation, tSegmentName } = useLanguage();
   const {
     getSensorById,
     getSensorTelemetry,
@@ -35,30 +37,32 @@ export function SensorDetailsPage() {
 
   if (!sensor) {
     return (
-      <AppLayout title="Sensor Details">
+      <AppLayout title={t('sensorDetails.title')} denseHeader>
         <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Sensor not found</p>
+          <p className="text-sm font-medium text-slate-500">
+            {t('sensorDetails.notFoundLabel')}
+          </p>
           <h3 className="mt-2 text-xl font-semibold text-slate-800">
-            No station matches this ID
+            {t('sensorDetails.notFoundTitle')}
           </h3>
           <p className="mt-2 text-sm text-slate-500">
             <span className="font-mono text-slate-700">
               {sensorId || '(empty)'}
             </span>{' '}
-            is not in the shared simulation.
+            {t('sensorDetails.notFoundBody')}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
               to="/sensors/S03"
               className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
             >
-              Open sample (S03)
+              {t('sensorDetails.openSample')}
             </Link>
             <Link
               to="/sensors"
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              Sensor list
+              {t('sensorDetails.sensorList')}
             </Link>
           </div>
         </div>
@@ -66,14 +70,16 @@ export function SensorDetailsPage() {
     );
   }
 
+  const localizedSensorName = tSensorName(sensor);
+
   const primaryMetrics = [
     {
-      label: 'Flow rate',
+      label: t('sensorDetails.flowRate'),
       value: sensor.current.flowRateLps.toFixed(2),
       unit: 'L/s',
     },
     {
-      label: 'Water level',
+      label: t('sensorDetails.waterLevel'),
       value: sensor.current.waterLevelM.toFixed(3),
       unit: 'm',
     },
@@ -81,7 +87,7 @@ export function SensorDetailsPage() {
 
   const secondaryMetrics = [
     {
-      label: 'Flow velocity',
+      label: t('sensorDetails.flowVelocity'),
       value:
         sensor.current.flowVelocityMps != null
           ? sensor.current.flowVelocityMps.toFixed(2)
@@ -89,7 +95,7 @@ export function SensorDetailsPage() {
       unit: 'm/s',
     },
     {
-      label: 'Battery',
+      label: t('sensorDetails.battery'),
       value:
         sensor.current.batteryPercent != null
           ? String(sensor.current.batteryPercent)
@@ -97,7 +103,7 @@ export function SensorDetailsPage() {
       unit: '%',
     },
     {
-      label: 'Signal',
+      label: t('sensorDetails.signal'),
       value:
         sensor.current.signalPercent != null
           ? String(sensor.current.signalPercent)
@@ -128,11 +134,11 @@ export function SensorDetailsPage() {
   );
 
   return (
-    <AppLayout title="Sensor Details">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <AppLayout title={t('sensorDetails.title')} denseHeader>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <nav className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
           <Link to="/sensors" className="hover:text-teal-700">
-            Sensors
+            {t('nav.sensors')}
           </Link>
           <span aria-hidden>/</span>
           <span className="font-mono text-slate-700">{sensor.id}</span>
@@ -142,32 +148,34 @@ export function SensorDetailsPage() {
           onClick={() => setMetadataOpen(true)}
           className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
         >
-          Device Metadata
+          {t('sensorDetails.deviceMetadataBtn')}
         </button>
       </div>
 
-      <section className="mb-6 grid gap-4 lg:grid-cols-2">
+      <section className="mb-3 grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-medium text-slate-500">
-                Sensor station
+                {t('sensorDetails.stationLabel')}
               </p>
               <h3 className="mt-1 text-2xl font-semibold text-slate-800">
-                {sensor.name}
+                {localizedSensorName}
               </h3>
             </div>
             <StatusBadge status={sensor.status} />
           </div>
           <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm">
-            <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1">
-              <dt className="text-slate-500">Location</dt>
-              <dd className="min-w-0 text-slate-700">{sensor.location.label}</dd>
-              <dt className="text-slate-500">Channel</dt>
+            <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1">
+              <dt className="text-slate-500">{t('sensorDetails.location')}</dt>
               <dd className="min-w-0 text-slate-700">
-                {segment?.name ?? sensor.channelSegmentId}
+                {tSensorLocation(sensor)}
               </dd>
-              <dt className="text-slate-500">Last update</dt>
+              <dt className="text-slate-500">{t('sensorDetails.channel')}</dt>
+              <dd className="min-w-0 text-slate-700">
+                {tSegmentName(sensor.channelSegmentId, segment?.name)}
+              </dd>
+              <dt className="text-slate-500">{t('sensorDetails.lastUpdate')}</dt>
               <dd className="min-w-0 text-slate-700">
                 {formatUpdatedAt(sensor.current.updatedAt)}
               </dd>
@@ -185,16 +193,16 @@ export function SensorDetailsPage() {
         </div>
       </section>
 
-      <section className="flex min-h-[450px] flex-col gap-3 lg:flex-row">
+      <section className="grid min-h-[420px] gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-stretch">
         <SensorTelemetryChart
           points={telemetry}
           range={range}
           onRangeChange={setRange}
+          sensorId={sensor.id}
+          sensorName={localizedSensorName}
+          currentFlowLps={sensor.current.flowRateLps}
         />
-
-        <div className="flex min-w-[280px] flex-1 flex-col">
-          <SensorEventsPanel alerts={alerts} />
-        </div>
+        <SensorEventsPanel alerts={alerts} />
       </section>
 
       <SensorDeviceMetadataModal

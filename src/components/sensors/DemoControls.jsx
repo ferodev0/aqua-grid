@@ -1,7 +1,9 @@
+import { useLanguage } from '../../context/LanguageContext';
 import { useNetwork } from '../../context/NetworkContext';
 
 /** Crisis/reset controls for the shared simulation (sidebar footer). */
 export function DemoControls({ collapsed = false }) {
+  const { t } = useLanguage();
   const {
     isCrisisActive,
     isRunning,
@@ -17,7 +19,7 @@ export function DemoControls({ collapsed = false }) {
           type="button"
           onClick={triggerCrisis}
           disabled={isCrisisActive}
-          title="Trigger crisis"
+          title={t('demo.triggerCrisis')}
           className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           !
@@ -25,7 +27,7 @@ export function DemoControls({ collapsed = false }) {
         <button
           type="button"
           onClick={resetSimulation}
-          title="Reset simulation"
+          title={t('demo.resetSimulation')}
           className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100"
         >
           R
@@ -33,7 +35,7 @@ export function DemoControls({ collapsed = false }) {
         <button
           type="button"
           onClick={() => setSimulationRunning(!isRunning)}
-          title={isRunning ? 'Pause ticks' : 'Resume ticks'}
+          title={isRunning ? t('demo.pauseTicks') : t('demo.resumeTicks')}
           className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100"
         >
           {isRunning ? '||' : '▶'}
@@ -42,7 +44,7 @@ export function DemoControls({ collapsed = false }) {
           className={`h-2.5 w-2.5 rounded-full ${
             isCrisisActive ? 'bg-amber-500' : 'bg-emerald-500'
           }`}
-          title={isCrisisActive ? 'Crisis active' : 'Baseline'}
+          title={isCrisisActive ? t('demo.crisisActive') : t('demo.baseline')}
         />
       </div>
     );
@@ -51,7 +53,7 @@ export function DemoControls({ collapsed = false }) {
   return (
     <div className="mt-auto border-t border-slate-200 p-3">
       <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-        Demo controls
+        {t('demo.controlsTitle')}
       </p>
       <div className="flex flex-col gap-2">
         <button
@@ -60,21 +62,21 @@ export function DemoControls({ collapsed = false }) {
           disabled={isCrisisActive}
           className="w-full rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Trigger crisis
+          {t('demo.triggerCrisis')}
         </button>
         <button
           type="button"
           onClick={resetSimulation}
           className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
         >
-          Reset simulation
+          {t('demo.resetSimulation')}
         </button>
         <button
           type="button"
           onClick={() => setSimulationRunning(!isRunning)}
           className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
         >
-          {isRunning ? 'Pause ticks' : 'Resume ticks'}
+          {isRunning ? t('demo.pauseTicks') : t('demo.resumeTicks')}
         </button>
         <span
           className={`rounded-lg border px-2 py-1 text-center text-[10px] font-bold uppercase tracking-wide ${
@@ -83,7 +85,7 @@ export function DemoControls({ collapsed = false }) {
               : 'border-emerald-200 bg-emerald-50 text-emerald-700'
           }`}
         >
-          {isCrisisActive ? 'Crisis active' : 'Baseline'}
+          {isCrisisActive ? t('demo.crisisActive') : t('demo.baseline')}
         </span>
       </div>
     </div>

@@ -16,9 +16,24 @@ export const DEFAULT_ALERT_THRESHOLDS: AlertThresholds = {
 };
 
 /**
+ * Reference villages and sub-areas in the Lefke region for grouping/filtering.
+ */
+export const KNOWN_VILLAGES: string[] = [
+  "Lefke",
+  "Bağlıköy",
+  "Gaziveren",
+];
+
+export const KNOWN_AREAS_BY_VILLAGE: Record<string, string[]> = {
+  Lefke: ["Upper Valley Intake", "Central Town Aqueduct"],
+  Bağlıköy: ["Orchard Distribution Zone"],
+  Gaziveren: ["Lower Agricultural Plains"],
+};
+
+/**
  * Fictional demonstration sensors representing a conceptual water channel
- * passing through the Lefke area. Coordinates and baselines are illustrative
- * demonstration values, not surveyed field measurements.
+ * passing through the Lefke area. Coordinates, villages, areas, and baselines
+ * are illustrative demonstration values, not surveyed field measurements.
  */
 export function createInitialSensors(nowIso: string = new Date().toISOString()): Sensor[] {
   return [
@@ -26,10 +41,14 @@ export function createInitialSensors(nowIso: string = new Date().toISOString()):
       id: "S01",
       name: "Upper Channel",
       channelSegmentId: "SEG-01",
+      village: "Lefke",
+      area: "Upper Valley Intake",
       location: {
         lat: 35.1065,
         lng: 32.8452,
         label: "Upper Valley Intake (Illustrative)",
+        village: "Lefke",
+        area: "Upper Valley Intake",
         isIllustrative: true,
       },
       baseline: {
@@ -50,10 +69,14 @@ export function createInitialSensors(nowIso: string = new Date().toISOString()):
       id: "S02",
       name: "Central Channel",
       channelSegmentId: "SEG-02",
+      village: "Lefke",
+      area: "Central Town Aqueduct",
       location: {
         lat: 35.1118,
         lng: 32.8498,
         label: "Central Town Aqueduct Section (Illustrative)",
+        village: "Lefke",
+        area: "Central Town Aqueduct",
         isIllustrative: true,
       },
       baseline: {
@@ -74,10 +97,14 @@ export function createInitialSensors(nowIso: string = new Date().toISOString()):
       id: "S03",
       name: "Village Approach",
       channelSegmentId: "SEG-03",
+      village: "Bağlıköy",
+      area: "Orchard Distribution Zone",
       location: {
         lat: 35.1174,
         lng: 32.8546,
         label: "Orchard & Village Distribution Approach (Illustrative)",
+        village: "Bağlıköy",
+        area: "Orchard Distribution Zone",
         isIllustrative: true,
       },
       baseline: {
@@ -98,10 +125,14 @@ export function createInitialSensors(nowIso: string = new Date().toISOString()):
       id: "S04",
       name: "Lower Channel",
       channelSegmentId: "SEG-04",
+      village: "Gaziveren",
+      area: "Lower Agricultural Plains",
       location: {
         lat: 35.1232,
         lng: 32.8595,
         label: "Lower Agricultural Outlying Section (Illustrative)",
+        village: "Gaziveren",
+        area: "Lower Agricultural Plains",
         isIllustrative: true,
       },
       baseline: {
@@ -128,6 +159,8 @@ export const INITIAL_CHANNEL_SEGMENTS: ChannelSegment[] = [
   {
     id: "SEG-01",
     name: "Upper Feeder Section (Intake to S01)",
+    village: "Lefke",
+    area: "Upper Valley Intake",
     downstreamSensorId: "S01",
     path: [
       { lat: 35.1025, lng: 32.8415 },
@@ -139,6 +172,8 @@ export const INITIAL_CHANNEL_SEGMENTS: ChannelSegment[] = [
   {
     id: "SEG-02",
     name: "Upper-to-Central Transit (S01 to S02)",
+    village: "Lefke",
+    area: "Central Town Aqueduct",
     upstreamSensorId: "S01",
     downstreamSensorId: "S02",
     path: [
@@ -151,6 +186,8 @@ export const INITIAL_CHANNEL_SEGMENTS: ChannelSegment[] = [
   {
     id: "SEG-03",
     name: "Central-to-Village Distribution (S02 to S03)",
+    village: "Bağlıköy",
+    area: "Orchard Distribution Zone",
     upstreamSensorId: "S02",
     downstreamSensorId: "S03",
     path: [
@@ -163,6 +200,8 @@ export const INITIAL_CHANNEL_SEGMENTS: ChannelSegment[] = [
   {
     id: "SEG-04",
     name: "Outlying Lower Reach (S03 to S04)",
+    village: "Gaziveren",
+    area: "Lower Agricultural Plains",
     upstreamSensorId: "S03",
     downstreamSensorId: "S04",
     path: [

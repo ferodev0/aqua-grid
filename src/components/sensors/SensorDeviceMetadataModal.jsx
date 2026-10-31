@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export function SensorDeviceMetadataModal({
   open,
@@ -6,6 +7,8 @@ export function SensorDeviceMetadataModal({
   sensor,
   segment,
 }) {
+  const { t, tSegmentName } = useLanguage();
+
   useEffect(() => {
     if (!open) return undefined;
 
@@ -25,24 +28,27 @@ export function SensorDeviceMetadataModal({
   if (!open || !sensor) return null;
 
   const rows = [
-    ['Sensor type', 'Ultrasonic level + flow estimate (demo)'],
-    ['Installation', '2026-01-15 (demonstration)'],
-    ['Reporting interval', '2.5 s (simulated)'],
+    [t('metadata.sensorType'), t('metadata.sensorTypeVal')],
+    [t('metadata.installation'), t('metadata.installationVal')],
+    [t('metadata.reportingInterval'), t('metadata.reportingIntervalVal')],
     [
-      'Battery',
+      t('metadata.battery'),
       sensor.current.batteryPercent != null
         ? `${sensor.current.batteryPercent}%`
         : '—',
     ],
     [
-      'Signal strength',
+      t('metadata.signalStrength'),
       sensor.current.signalPercent != null
         ? `${sensor.current.signalPercent}%`
         : '—',
     ],
-    ['Channel segment', segment?.name ?? sensor.channelSegmentId],
-    ['Upstream', segment?.upstreamSensorId ?? '—'],
-    ['Downstream', segment?.downstreamSensorId ?? '—'],
+    [
+      t('metadata.channelSegment'),
+      tSegmentName(sensor.channelSegmentId, segment?.name),
+    ],
+    [t('metadata.upstream'), segment?.upstreamSensorId ?? '—'],
+    [t('metadata.downstream'), segment?.downstreamSensorId ?? '—'],
   ];
 
   return (
@@ -54,19 +60,19 @@ export function SensorDeviceMetadataModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] w-full max-w-md flex-col rounded-xl border border-slate-200 bg-white shadow-lg"
+        className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <div>
             <h4
               id="device-metadata-modal-title"
-              className="text-lg font-semibold text-slate-800"
+              className="text-base font-semibold text-slate-800"
             >
-              Device metadata
+              {t('metadata.title')}
             </h4>
-            <p className="mt-0.5 text-xs text-slate-400">
-              Simulated properties for demonstration only
+            <p className="text-xs text-slate-400">
+              {t('metadata.subtitle')}
             </p>
           </div>
           <button
@@ -74,17 +80,20 @@ export function SensorDeviceMetadataModal({
             onClick={onClose}
             className="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
           >
-            Close
+            {t('common.close')}
           </button>
         </div>
-        <dl className="flex flex-col gap-3 overflow-y-auto p-5">
+
+        <dl className="divide-y divide-slate-100 px-5 py-1">
           {rows.map(([label, value]) => (
             <div
               key={label}
-              className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+              className="flex items-start justify-between gap-6 py-2.5"
             >
-              <dt className="text-xs text-slate-400">{label}</dt>
-              <dd className="mt-1 text-sm text-slate-600">{value}</dd>
+              <dt className="shrink-0 text-sm text-slate-500">{label}</dt>
+              <dd className="text-right text-sm font-medium text-slate-800">
+                {value}
+              </dd>
             </div>
           ))}
         </dl>
