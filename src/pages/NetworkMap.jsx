@@ -26,8 +26,8 @@ import {
   KNOWN_VILLAGES,
 } from '../simulation/demoData';
 
-const LEFKE_CENTER = [35.1135, 32.851];
-const DEFAULT_ZOOM = 14;
+const LEFKE_CENTER = [35.11003, 32.851];
+const DEFAULT_ZOOM = 16;
 
 const STATUS_MARKER_COLORS = {
   normal: '#10b981', // emerald-500 (Green)
@@ -289,12 +289,14 @@ function LocalizedMapChrome({ zoomInLabel, zoomOutLabel }) {
 }
 
 /**
- * Fits viewport once when sensor/channel geometry changes.
+ * Initial open uses Lefke ortala (LEFKE_CENTER + DEFAULT_ZOOM).
+ * Later geometry edits (add/move sensors or channels) refit the viewport once.
  * Skips telemetry-only ticks so manual zoom is not reset.
  */
 function FitBoundsToNetwork({ sensors, channelSegments }) {
   const map = useMap();
   const lastFittedKeyRef = useRef(null);
+  const isInitialGeometryRef = useRef(true);
 
   const geometryKey = useMemo(() => {
     const sensorPart = sensors
@@ -317,6 +319,12 @@ function FitBoundsToNetwork({ sensors, channelSegments }) {
   useEffect(() => {
     if (lastFittedKeyRef.current === geometryKey) return;
     lastFittedKeyRef.current = geometryKey;
+
+    if (isInitialGeometryRef.current) {
+      isInitialGeometryRef.current = false;
+      map.setView(LEFKE_CENTER, DEFAULT_ZOOM);
+      return;
+    }
 
     const points = [];
     sensors.forEach((s) => {
@@ -1285,6 +1293,7 @@ export function NetworkMap({ title }) {
               center={LEFKE_CENTER}
               zoom={DEFAULT_ZOOM}
               scrollWheelZoom={true}
+              wheelPxPerZoomLevel={120}
               style={{
                 width: '100%',
                 height: '100%',
