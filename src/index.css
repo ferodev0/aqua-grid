@@ -422,3 +422,8 @@ html.dark .aqua-about-footer > span:first-child {
   margin: 0;
   padding: 0;
 }
+
+/* Keep centered glyph in sync with the pulsing CircleMarker disc */
+.leaflet-tooltip.aqua-marker-glyph-tip.aqua-sensor-pulse {
+  animation: aqua-sensor-pulse 0.85s ease-in-out infinite;
+}

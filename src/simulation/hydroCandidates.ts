@@ -18,6 +18,8 @@ export const MIN_HEAD_M = 0.8;
 export const MAX_HEAD_M = 4.0;
 /** Skip samples that sit on top of a sensor marker. */
 export const SENSOR_EXCLUSION_RADIUS_M = 25;
+/** Within this haversine gap, prefer the upstream (along-path) sensor. */
+export const NEAREST_DISTANCE_TIE_M = 15;
 
 export interface GenerateHydroCandidatesOptions {
   assumedGrade?: number;
@@ -104,10 +106,159 @@ function interpolateAlongPath(
   return { lat: last.lat, lng: last.lng };
 }
 
-function resolveReferenceSensor(
+/** Nearest chainage along a polyline to an arbitrary lat/lng. */
+function nearestChainageOnPath(
+  profile: PathVertex[],
+  point: { lat: number; lng: number }
+): number {
+  if (profile.length === 0) return 0;
+  if (profile.length === 1) return 0;
+
+  let bestDist = Infinity;
+  let bestCum = 0;
+
+  for (let i = 1; i < profile.length; i += 1) {
+    const a = profile[i - 1];
+    const b = profile[i];
+    const abLat = b.lat - a.lat;
+    const abLng = b.lng - a.lng;
+    const abLen2 = abLat * abLat + abLng * abLng;
+    let t = 0;
+    if (abLen2 > 1e-18) {
+      t = clamp(
+        ((point.lat - a.lat) * abLat + (point.lng - a.lng) * abLng) / abLen2,
+        0,
+        1
+      );
+    }
+    const proj = { lat: a.lat + abLat * t, lng: a.lng + abLng * t };
+    const d = haversineDistanceM(point, proj);
+    if (d < bestDist) {
+      bestDist = d;
+      const span = b.cumDistM - a.cumDistM;
+      bestCum = a.cumDistM + span * t;
+    }
+  }
+  return bestCum;
+}
+
+function getSensorLatLng(
+  sensor: Sensor,
+  channelSegments: ChannelSegment[]
+): { lat: number; lng: number } | null {
+  if (
+    sensor.location?.lat !== undefined &&
+    sensor.location?.lng !== undefined
+  ) {
+    return { lat: sensor.location.lat, lng: sensor.location.lng };
+  }
+  const seg = channelSegments.find((s) => s.id === sensor.channelSegmentId);
+  if (seg?.path?.length) {
+    const mid = seg.path[Math.floor(seg.path.length / 2)];
+    return { lat: mid.lat, lng: mid.lng };
+  }
+  return null;
+}
+
+function collectSegmentLinkedSensors(
   segment: ChannelSegment,
+  sensors: Sensor[],
   sensorsById: Map<string, Sensor>
+): Sensor[] {
+  const byId = new Map<string, Sensor>();
+  for (const sensor of sensors) {
+    if (sensor.channelSegmentId === segment.id) {
+      byId.set(sensor.id, sensor);
+    }
+  }
+  if (segment.upstreamSensorId) {
+    const up = sensorsById.get(segment.upstreamSensorId);
+    if (up) byId.set(up.id, up);
+  }
+  if (segment.downstreamSensorId) {
+    const down = sensorsById.get(segment.downstreamSensorId);
+    if (down) byId.set(down.id, down);
+  }
+  return [...byId.values()];
+}
+
+function pickNearestSensor(
+  point: { lat: number; lng: number },
+  pool: Sensor[],
+  channelSegments: ChannelSegment[],
+  profile: PathVertex[],
+  sampleChainageM: number
 ): Sensor | undefined {
+  type Ranked = {
+    sensor: Sensor;
+    distM: number;
+    chainageM: number;
+    isUpstreamOrAt: boolean;
+  };
+
+  const ranked: Ranked[] = [];
+  for (const sensor of pool) {
+    const coords = getSensorLatLng(sensor, channelSegments);
+    if (!coords) continue;
+    const distM = haversineDistanceM(point, coords);
+    const chainageM = nearestChainageOnPath(profile, coords);
+    ranked.push({
+      sensor,
+      distM,
+      chainageM,
+      isUpstreamOrAt: chainageM <= sampleChainageM + 1e-3,
+    });
+  }
+  if (ranked.length === 0) return undefined;
+
+  ranked.sort((a, b) => {
+    const distDelta = a.distM - b.distM;
+    if (Math.abs(distDelta) > NEAREST_DISTANCE_TIE_M) {
+      return distDelta;
+    }
+    // Near-tie: prefer sensor at/upstream of the sample along the channel
+    if (a.isUpstreamOrAt !== b.isUpstreamOrAt) {
+      return a.isUpstreamOrAt ? -1 : 1;
+    }
+    return distDelta;
+  });
+
+  return ranked[0].sensor;
+}
+
+/**
+ * Pick the flow reference for a candidate sample: nearest sensor linked to the
+ * segment (haversine), with upstream preference on near-ties; fall back to the
+ * nearest network sensor, then classic upstream/downstream IDs.
+ */
+function resolveReferenceSensorForPoint(
+  point: { lat: number; lng: number },
+  segment: ChannelSegment,
+  sensors: Sensor[],
+  channelSegments: ChannelSegment[],
+  sensorsById: Map<string, Sensor>,
+  profile: PathVertex[],
+  sampleChainageM: number
+): Sensor | undefined {
+  const linked = collectSegmentLinkedSensors(segment, sensors, sensorsById);
+  const fromLinked = pickNearestSensor(
+    point,
+    linked,
+    channelSegments,
+    profile,
+    sampleChainageM
+  );
+  if (fromLinked) return fromLinked;
+
+  const fromNetwork = pickNearestSensor(
+    point,
+    sensors,
+    channelSegments,
+    profile,
+    sampleChainageM
+  );
+  if (fromNetwork) return fromNetwork;
+
   if (segment.upstreamSensorId) {
     const up = sensorsById.get(segment.upstreamSensorId);
     if (up) return up;
@@ -129,13 +280,13 @@ function resolveFlowRateLps(sensor: Sensor | undefined): number {
 function isNearAnySensor(
   point: { lat: number; lng: number },
   sensors: Sensor[],
+  channelSegments: ChannelSegment[],
   exclusionRadiusM: number
 ): boolean {
   for (const sensor of sensors) {
-    const lat = sensor.location?.lat;
-    const lng = sensor.location?.lng;
-    if (lat === undefined || lng === undefined) continue;
-    if (haversineDistanceM(point, { lat, lng }) < exclusionRadiusM) {
+    const coords = getSensorLatLng(sensor, channelSegments);
+    if (!coords) continue;
+    if (haversineDistanceM(point, coords) < exclusionRadiusM) {
       return true;
     }
   }
@@ -144,7 +295,8 @@ function isNearAnySensor(
 
 /**
  * Samples channel polylines, estimates illustrative head from assumed grade ×
- * distance-from-upstream, scores with live flow, and returns top candidate sites.
+ * distance-from-upstream, scores with live flow from the nearest relevant
+ * sensor, and returns top candidate sites.
  */
 export function generateHydroCandidateSites(
   channelSegments: ChannelSegment[],
@@ -184,10 +336,6 @@ export function generateHydroCandidateSites(
     const totalLengthM = profile[profile.length - 1]?.cumDistM ?? 0;
     if (totalLengthM < 5) continue;
 
-    const refSensor = resolveReferenceSensor(segment, sensorsById);
-    const referenceSensorId = refSensor?.id ?? "—";
-    const flowRateLps = resolveFlowRateLps(refSensor);
-
     const sampleCount = Math.max(
       minSamples,
       Math.floor(totalLengthM / sampleSpacingM) + 1
@@ -200,7 +348,23 @@ export function generateHydroCandidateSites(
       const lengthFromUpstreamM = totalLengthM * interiorT;
       const point = interpolateAlongPath(profile, lengthFromUpstreamM);
       if (!point) continue;
-      if (isNearAnySensor(point, sensors, exclusionRadiusM)) continue;
+      if (
+        isNearAnySensor(point, sensors, channelSegments, exclusionRadiusM)
+      ) {
+        continue;
+      }
+
+      const refSensor = resolveReferenceSensorForPoint(
+        point,
+        segment,
+        sensors,
+        channelSegments,
+        sensorsById,
+        profile,
+        lengthFromUpstreamM
+      );
+      const referenceSensorId = refSensor?.id ?? "—";
+      const flowRateLps = resolveFlowRateLps(refSensor);
 
       const netHeadM = clamp(
         assumedGrade * lengthFromUpstreamM,

@@ -90,7 +90,7 @@ function SensorGlyphIcon({ size = 16 }) {
   );
 }
 
-function EnergyGlyphIcon({ size = 16 }) {
+function EnergyGlyphIcon({ size = 16, color = '#0284c7' }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -99,7 +99,7 @@ function EnergyGlyphIcon({ size = 16 }) {
       aria-hidden="true"
     >
       <path
-        fill="#ffffff"
+        fill={color}
         d="M13.2 2.4 5.5 13.2h5.1l-.9 8.4 8.4-12h-5.2l1.3-7.2z"
       />
     </svg>
@@ -265,6 +265,29 @@ function MapViewportController({ mode, flyTarget, resetCounter }) {
   return null;
 }
 
+/** Keeps Leaflet zoom control title/aria labels in sync with UI language. */
+function LocalizedMapChrome({ zoomInLabel, zoomOutLabel }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const zoomEl = map.zoomControl?.getContainer?.();
+    if (!zoomEl) return;
+    const links = zoomEl.querySelectorAll('a');
+    const inBtn = links[0];
+    const outBtn = links[1];
+    if (inBtn) {
+      inBtn.title = zoomInLabel;
+      inBtn.setAttribute('aria-label', zoomInLabel);
+    }
+    if (outBtn) {
+      outBtn.title = zoomOutLabel;
+      outBtn.setAttribute('aria-label', zoomOutLabel);
+    }
+  }, [map, zoomInLabel, zoomOutLabel]);
+
+  return null;
+}
+
 /**
  * Fits viewport once when sensor/channel geometry changes.
  * Skips telemetry-only ticks so manual zoom is not reset.
@@ -324,7 +347,6 @@ function SchematicNetworkDiagram({
   onSelectSensor,
   onSelectSegment,
   t,
-  tSegmentName,
 }) {
   const allCoords = useMemo(() => {
     const pts = [];
@@ -349,8 +371,9 @@ function SchematicNetworkDiagram({
     }
     const lats = allCoords.map((c) => c[0]);
     const lngs = allCoords.map((c) => c[1]);
-    const padLat = 0.003;
-    const padLng = 0.003;
+    // Modest padding so markers aren't clipped; keep shape close to the map.
+    const padLat = 0.0012;
+    const padLng = 0.0012;
     return {
       minLat: Math.min(...lats) - padLat,
       maxLat: Math.max(...lats) + padLat,
@@ -362,17 +385,38 @@ function SchematicNetworkDiagram({
   const width = 760;
   const height = 460;
 
+  /**
+   * Uniform geographic scale (meters) so schematic channel shapes match the
+   * interactive map instead of independently stretching lat vs lng into the SVG.
+   */
   const project = useCallback(
     (lat, lng) => {
-      const xRatio =
-        (lng - bounds.minLng) /
-        Math.max(0.0001, bounds.maxLng - bounds.minLng);
-      const yRatio =
-        (lat - bounds.minLat) /
-        Math.max(0.0001, bounds.maxLat - bounds.minLat);
+      const drawLeft = 48;
+      const drawTop = 40;
+      const drawWidth = width - 96;
+      const drawHeight = height - 90;
+      const midLat = (bounds.minLat + bounds.maxLat) / 2;
+      const metersPerDegLat = 111_320;
+      const metersPerDegLng =
+        111_320 * Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
+
+      const geoWidthM = Math.max(
+        (bounds.maxLng - bounds.minLng) * metersPerDegLng,
+        1
+      );
+      const geoHeightM = Math.max(
+        (bounds.maxLat - bounds.minLat) * metersPerDegLat,
+        1
+      );
+      const scale = Math.min(drawWidth / geoWidthM, drawHeight / geoHeightM);
+      const usedW = geoWidthM * scale;
+      const usedH = geoHeightM * scale;
+      const offsetX = drawLeft + (drawWidth - usedW) / 2;
+      const offsetY = drawTop + (drawHeight - usedH) / 2;
+
       return {
-        x: 60 + xRatio * (width - 120),
-        y: height - 50 - yRatio * (height - 100),
+        x: offsetX + (lng - bounds.minLng) * metersPerDegLng * scale,
+        y: offsetY + (bounds.maxLat - lat) * metersPerDegLat * scale,
       };
     },
     [bounds]
@@ -380,18 +424,13 @@ function SchematicNetworkDiagram({
 
   return (
     <div className="flex h-full min-h-[540px] w-full flex-col justify-between rounded-xl border border-slate-200 bg-slate-900 p-4 text-slate-100 shadow-inner">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-teal-400">
-            {t('map.schematicBadge')}
-          </span>
-          <h4 className="text-sm font-semibold text-white">
-            {t('map.schematicTitle')}
-          </h4>
-        </div>
-        <span className="rounded bg-slate-800 px-2.5 py-1 text-[11px] text-slate-300">
-          {t('map.schematicDisclaimer')}
+      <div className="border-b border-slate-800 pb-3">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-teal-400">
+          {t('map.schematicBadge')}
         </span>
+        <h4 className="text-sm font-semibold text-white">
+          {t('map.schematicTitle')}
+        </h4>
       </div>
 
       <svg
@@ -425,10 +464,15 @@ function SchematicNetworkDiagram({
           const downstreamSensor = sensors.find(
             (s) => s.id === seg.downstreamSensorId
           );
-          const hasAnomaly =
-            downstreamSensor &&
-            (downstreamSensor.status === 'warning' ||
-              downstreamSensor.status === 'critical');
+          const hasCriticalAnomaly = downstreamSensor?.status === 'critical';
+          const hasWarningAnomaly = downstreamSensor?.status === 'warning';
+          const strokeColor = hasCriticalAnomaly
+            ? '#ef4444'
+            : hasWarningAnomaly
+            ? '#f59e0b'
+            : isSelected
+            ? '#2dd4bf'
+            : '#0d9488';
 
           return (
             <g
@@ -438,28 +482,16 @@ function SchematicNetworkDiagram({
             >
               <polyline
                 fill="none"
-                stroke={
-                  isSelected
-                    ? '#2dd4bf'
-                    : hasAnomaly
-                    ? '#f59e0b'
-                    : '#0d9488'
-                }
+                stroke={strokeColor}
                 strokeWidth={isSelected ? 8 : 5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                strokeDasharray={
+                  hasCriticalAnomaly || hasWarningAnomaly ? '8 6' : undefined
+                }
                 points={pointsStr}
                 opacity={0.9}
               />
-              {pts.length >= 2 && (
-                <text
-                  x={(pts[0].x + pts[pts.length - 1].x) / 2 - 10}
-                  y={(pts[0].y + pts[pts.length - 1].y) / 2 - 12}
-                  className="fill-slate-400 text-[10px] font-semibold"
-                >
-                  {seg.id} ({tSegmentName(seg.id, seg.name).slice(0, 22)})
-                </text>
-              )}
             </g>
           );
         })}
@@ -623,6 +655,7 @@ export function NetworkMap({ title }) {
   const [selectedSensorId, setSelectedSensorId] = useState(null);
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [showHydroCandidates, setShowHydroCandidates] = useState(false);
   const [flyTarget, setFlyTarget] = useState(null);
   const [resetViewCounter, setResetViewCounter] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -631,8 +664,6 @@ export function NetworkMap({ title }) {
   const [channelPoints, setChannelPoints] = useState([]);
   const [branchPoint, setBranchPoint] = useState(null);
   const [newSegmentName, setNewSegmentName] = useState('');
-  const [autoCreateSegmentSensors, setAutoCreateSegmentSensors] =
-    useState(true);
 
   // New Virtual Sensor Form state
   const [newSensorForm, setNewSensorForm] = useState({
@@ -913,9 +944,6 @@ export function NetworkMap({ title }) {
     const village = branchPoint?.village || 'Lefke';
     const area =
       KNOWN_AREAS_BY_VILLAGE[village]?.[0] || 'Upper Valley Intake';
-    const baseFlowLps = branchPoint
-      ? Number((9.5 * branchPoint.flowToBranch).toFixed(1))
-      : 7.5;
 
     const createdSegment = addChannelSegment({
       name:
@@ -928,54 +956,6 @@ export function NetworkMap({ title }) {
       path: channelPoints.map(([lat, lng]) => ({ lat, lng })),
     });
 
-    if (autoCreateSegmentSensors) {
-      const startPt = channelPoints[0];
-      const endPt = channelPoints[channelPoints.length - 1];
-
-      const upSensor = addSensor({
-        name: branchPoint
-          ? `${createdSegment.id} Intake`
-          : `${createdSegment.id} Upstream`,
-        channelSegmentId: createdSegment.id,
-        village,
-        area,
-        location: {
-          lat: startPt[0],
-          lng: startPt[1],
-          label: `${createdSegment.id} Intake (Illustrative)`,
-          village,
-          area,
-        },
-        baseline: {
-          flowRateLps: baseFlowLps,
-          waterLevelM: 0.34,
-        },
-      });
-
-      const downSensor = addSensor({
-        name: `${createdSegment.id} Downstream`,
-        channelSegmentId: createdSegment.id,
-        village,
-        area,
-        location: {
-          lat: endPt[0],
-          lng: endPt[1],
-          label: `${createdSegment.id} Outflow (Illustrative)`,
-          village,
-          area,
-        },
-        baseline: {
-          flowRateLps: Number((baseFlowLps * 0.92).toFixed(1)),
-          waterLevelM: 0.29,
-        },
-      });
-
-      updateChannelSegment(createdSegment.id, {
-        upstreamSensorId: upSensor.id,
-        downstreamSensorId: downSensor.id,
-      });
-    }
-
     setChannelPoints([]);
     setBranchPoint(null);
     setNewSegmentName('');
@@ -986,10 +966,7 @@ export function NetworkMap({ title }) {
     branchPoint,
     newSegmentName,
     channelSegments.length,
-    autoCreateSegmentSensors,
     addChannelSegment,
-    addSensor,
-    updateChannelSegment,
     handleSelectSegment,
   ]);
 
@@ -1084,32 +1061,6 @@ export function NetworkMap({ title }) {
 
         {/* Interactive Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Map vs Schematic Toggle */}
-          <div className="flex rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs">
-            <button
-              type="button"
-              onClick={() => setViewType('map')}
-              className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
-                viewType === 'map'
-                  ? 'bg-white text-teal-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {t('map.interactiveMapBtn')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewType('schematic')}
-              className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
-                viewType === 'schematic'
-                  ? 'bg-white text-teal-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {t('map.schematicSvgBtn')}
-            </button>
-          </div>
-
           {viewType === 'map' && (
             <>
               <button
@@ -1246,16 +1197,6 @@ export function NetworkMap({ title }) {
                   placeholder={t('map.segmentNamePlaceholder')}
                   className="rounded border border-teal-300 bg-white px-2 py-0.5 text-xs text-slate-800"
                 />
-                <label className="flex items-center gap-1 text-[11px]">
-                  <input
-                    type="checkbox"
-                    checked={autoCreateSegmentSensors}
-                    onChange={(e) =>
-                      setAutoCreateSegmentSensors(e.target.checked)
-                    }
-                  />
-                  {t('map.autoAddSensorsLabel')}
-                </label>
               </div>
             )}
           </div>
@@ -1283,6 +1224,52 @@ export function NetworkMap({ title }) {
 
       {/* Map Area — edit panel opens as an overlay popup */}
       <div className="relative flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          {/* View toggle + hydro candidates — top-right; hydro only on interactive map */}
+          <div className="pointer-events-auto absolute right-3 top-3 z-[510] flex flex-col items-stretch gap-2">
+            <div className="flex rounded-xl border border-slate-200 bg-white/95 p-0.5 text-[11px] shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+              <button
+                type="button"
+                onClick={() => setViewType('map')}
+                className={`rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
+                  viewType === 'map'
+                    ? 'bg-slate-100 text-teal-700 dark:bg-slate-700 dark:text-teal-300'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
+                }`}
+              >
+                {t('map.interactiveMapBtn')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewType('schematic')}
+                className={`rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
+                  viewType === 'schematic'
+                    ? 'bg-slate-100 text-teal-700 dark:bg-slate-700 dark:text-teal-300'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
+                }`}
+              >
+                {t('map.schematicSvgBtn')}
+              </button>
+            </div>
+            {viewType === 'map' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (showHydroCandidates) setSelectedCandidateId(null);
+                  setShowHydroCandidates((prev) => !prev);
+                }}
+                className={`rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold shadow-md backdrop-blur-sm transition-colors ${
+                  showHydroCandidates
+                    ? 'border-sky-600 bg-sky-600 text-white'
+                    : 'border-slate-200 bg-white/95 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/95 dark:text-slate-200 dark:hover:bg-slate-700'
+                }`}
+                title={t('map.hydroCandidatesToggleTooltip')}
+                aria-pressed={showHydroCandidates}
+              >
+                {t('map.hydroCandidatesToggleBtn')}
+              </button>
+            )}
+          </div>
+
           {viewType === 'schematic' ? (
             <SchematicNetworkDiagram
               sensors={sensors}
@@ -1292,7 +1279,6 @@ export function NetworkMap({ title }) {
               onSelectSensor={(id) => handleSelectSensor(id, false)}
               onSelectSegment={handleSelectSegment}
               t={t}
-              tSegmentName={tSegmentName}
             />
           ) : (
             <MapContainer
@@ -1320,6 +1306,10 @@ export function NetworkMap({ title }) {
                 mode={mode}
                 flyTarget={flyTarget}
                 resetCounter={resetViewCounter}
+              />
+              <LocalizedMapChrome
+                zoomInLabel={t('map.zoomIn')}
+                zoomOutLabel={t('map.zoomOut')}
               />
               <FitBoundsToNetwork
                 sensors={sensors}
@@ -1418,42 +1408,50 @@ export function NetworkMap({ title }) {
                 </>
               )}
 
-              {/* Runtime micro-hydro candidate sites */}
-              {hydroCandidates.map((site) => {
-                const isSelected = site.id === selectedCandidateId;
-                return (
-                  <CircleMarker
-                    key={site.id}
-                    center={[site.lat, site.lng]}
-                    radius={isSelected ? 12 : 10}
-                    pathOptions={{
-                      fillColor: '#0284c7',
-                      fillOpacity: 1,
-                      color: isSelected
-                        ? isDark
-                          ? '#2dd4bf'
-                          : '#0f172a'
-                        : '#ffffff',
-                      weight: isSelected ? 3.5 : 2.5,
-                    }}
-                    eventHandlers={{
-                      click: () => handleSelectCandidate(site.id),
-                    }}
-                  >
-                    {/* Centered glyph — Leaflet anchors this to the same lat/lng */}
-                    <Tooltip
-                      permanent
-                      interactive={false}
-                      direction="center"
-                      offset={[0, 0]}
-                      opacity={1}
-                      className="aqua-marker-glyph-tip"
+              {/* Runtime micro-hydro candidates — toggled via toolbar */}
+              {showHydroCandidates &&
+                hydroCandidates.map((site) => {
+                  const isSelected = site.id === selectedCandidateId;
+                  const ringColor = isSelected
+                    ? isDark
+                      ? '#2dd4bf'
+                      : '#0369a1'
+                    : '#0284c7';
+                  // Match sensor radii: selected 14, default 11
+                  const radius = isSelected ? 14 : 11;
+                  return (
+                    <CircleMarker
+                      key={site.id}
+                      center={[site.lat, site.lng]}
+                      radius={radius}
+                      pathOptions={{
+                        fillColor: isDark ? '#0f172a' : '#ffffff',
+                        fillOpacity: 0.95,
+                        color: ringColor,
+                        weight: isSelected ? 3.5 : 2.5,
+                        dashArray: '6, 5',
+                        opacity: 1,
+                      }}
+                      eventHandlers={{
+                        click: () => handleSelectCandidate(site.id),
+                      }}
                     >
-                      <EnergyGlyphIcon size={isSelected ? 15 : 14} />
-                    </Tooltip>
-                  </CircleMarker>
-                );
-              })}
+                      <Tooltip
+                        permanent
+                        interactive={false}
+                        direction="center"
+                        offset={[0, 0]}
+                        opacity={1}
+                        className="aqua-marker-glyph-tip"
+                      >
+                        <EnergyGlyphIcon
+                          size={radius >= 13 ? 16 : 14}
+                          color={ringColor}
+                        />
+                      </Tooltip>
+                    </CircleMarker>
+                  );
+                })}
 
               {/* Simulated Sensor Station Markers */}
               {sensors.map((sensor) => {
@@ -1497,7 +1495,10 @@ export function NetworkMap({ title }) {
                         />
                       </>
                     )}
+                    {/* Remount when alert state flips — Leaflet pathOptions.className
+                        does not reliably drop aqua-sensor-pulse after reset. */}
                     <CircleMarker
+                      key={`${sensor.id}-alert-${isAlerting ? '1' : '0'}`}
                       center={coords}
                       radius={radius}
                       pathOptions={{
@@ -1509,7 +1510,9 @@ export function NetworkMap({ title }) {
                             : '#0f172a'
                           : '#ffffff',
                         weight: isAlerting || isSelected ? 3.5 : 2.5,
-                        className: isAlerting ? 'aqua-sensor-pulse' : undefined,
+                        className: isAlerting
+                          ? 'aqua-sensor-pulse'
+                          : 'aqua-sensor-marker',
                       }}
                       eventHandlers={{
                         click: () => handleSelectSensor(sensor.id, false),
@@ -1521,7 +1524,11 @@ export function NetworkMap({ title }) {
                         direction="center"
                         offset={[0, 0]}
                         opacity={1}
-                        className="aqua-marker-glyph-tip"
+                        className={
+                          isAlerting
+                            ? 'aqua-marker-glyph-tip aqua-sensor-pulse'
+                            : 'aqua-marker-glyph-tip'
+                        }
                       >
                         <SensorGlyphIcon size={radius >= 13 ? 16 : 14} />
                       </Tooltip>
@@ -1534,7 +1541,9 @@ export function NetworkMap({ title }) {
 
           {/* Floating Quick-Info Card (Top-Right of Map) */}
           {selectedSensor && (
-            <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+            <div className={`pointer-events-auto absolute right-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95 ${
+              viewType === 'map' ? 'top-24' : 'top-14'
+            }`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -1643,7 +1652,22 @@ export function NetworkMap({ title }) {
                     ),
                   })}
                 </span>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const [lat, lng] = getSensorCoords(
+                        selectedSensor,
+                        channelSegments
+                      );
+                      const url = `https://www.google.com/maps?q=${lat},${lng}`;
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-sky-700 dark:hover:bg-sky-950/40 dark:hover:text-sky-300"
+                    title={t('map.openInMapsTooltip')}
+                  >
+                    {t('map.openInMapsBtn')}
+                  </button>
                   <button
                     type="button"
                     onClick={openEditPanel}
@@ -1664,7 +1688,9 @@ export function NetworkMap({ title }) {
           )}
 
           {selectedSegment && !selectedSensor && !selectedCandidate && (
-            <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+            <div className={`pointer-events-auto absolute right-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95 ${
+              viewType === 'map' ? 'top-24' : 'top-14'
+            }`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="font-mono text-xs font-bold text-teal-600 dark:text-teal-400">
@@ -1713,8 +1739,10 @@ export function NetworkMap({ title }) {
             </div>
           )}
 
-          {selectedCandidate && !selectedSensor && (
-            <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+          {showHydroCandidates && selectedCandidate && !selectedSensor && (
+            <div className={`pointer-events-auto absolute right-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95 ${
+              viewType === 'map' ? 'top-24' : 'top-14'
+            }`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300">
@@ -1790,7 +1818,7 @@ export function NetworkMap({ title }) {
           )}
 
           {/* Map Legend Overlay (Bottom-Right of Map) */}
-          <div className="pointer-events-auto absolute bottom-3 right-3 z-[500] rounded-xl border border-slate-200 bg-white/95 p-3 text-[11px] shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+          <div className="pointer-events-auto absolute bottom-7 right-3 z-[500] rounded-xl border border-slate-200 bg-white/95 p-3 text-[11px] shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
             <div className="mb-1.5">
               <span className="font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 {t('map.legendTitle')}
@@ -1813,21 +1841,23 @@ export function NetworkMap({ title }) {
                 <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
                 {t('status.offline')}
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-sky-600">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-2.5 w-2.5"
-                    aria-hidden
-                  >
-                    <path
-                      fill="#ffffff"
-                      d="M13.2 2.4 5.5 13.2h5.1l-.9 8.4 8.4-12h-5.2l1.3-7.2z"
-                    />
-                  </svg>
+              {showHydroCandidates && (
+                <span className="flex items-center gap-1.5">
+                  <span className="relative flex h-2.5 w-2.5 items-center justify-center rounded-full border border-dashed border-sky-600 bg-white">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-1.5 w-1.5"
+                      aria-hidden
+                    >
+                      <path
+                        fill="#0284c7"
+                        d="M13.2 2.4 5.5 13.2h5.1l-.9 8.4 8.4-12h-5.2l1.3-7.2z"
+                      />
+                    </svg>
+                  </span>
+                  {t('map.hydroLegendLabel')}
                 </span>
-                {t('map.hydroLegendLabel')}
-              </span>
+              )}
             </div>
           </div>
 
