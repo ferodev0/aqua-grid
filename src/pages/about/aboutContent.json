@@ -42,10 +42,10 @@
     },
     {
       "number": "06",
-      "eyebrow": "The bigger picture",
-      "title": "Infrastructure that helps communities adapt.",
-      "body": "Aqua Grid is intended to explore how practical monitoring can support responsible water use, resilient local services, and carefully assessed clean-energy opportunities.",
-      "note": "These are areas of intended contribution, not achieved or certified outcomes.",
+      "eyebrow": "From inspection to ongoing insight",
+      "title": "A lasting, data-led approach to water-loss detection.",
+      "body": "Water-loss detection often relies on physical inspections and estimates, using methods that can be fragmented, inefficient, and costly. Aqua Grid aims to develop a modern, lasting approach through advanced data logging and monitoring, with lower energy use and greater system availability.",
+      "note": "Energy use, system availability, and long-term performance would need to be verified through field testing.",
       "side": "right"
     }
   ],
@@ -124,10 +124,10 @@
         },
         {
           "number": "06",
-          "eyebrow": "Büyük resim",
-          "title": "Toplulukların uyum sağlamasına yardımcı olan altyapı.",
-          "body": "Aqua Grid, pratik izlemenin sorumlu su kullanımını, dayanıklı yerel hizmetleri ve dikkatle değerlendirilen temiz enerji fırsatlarını nasıl destekleyebileceğini araştırmayı amaçlar.",
-          "note": "Bunlar ulaşılmış veya belgelenmiş sonuçlar değil, hedeflenen katkı alanlarıdır.",
+          "eyebrow": "İncelemeden sürekli izlemeye",
+          "title": "Su kaybının tespiti için kalıcı, veriye dayalı bir yaklaşım.",
+          "body": "Su kaybının tespiti çoğunlukla fiziksel inceleme ve tahminlere dayanır; mevcut yöntemler parçalı, verimsiz ve maliyetli olabilir. Aqua Grid'in ana hedefi, gelişmiş veri kayıt ve izleme sistemleriyle daha az enerji tüketen ve daha yüksek sistem kullanılabilirliği sunan kalıcı, modern bir yaklaşım geliştirmektir.",
+          "note": "Enerji tüketimi, sistem kullanılabilirliği ve uzun vadeli performans saha testleriyle doğrulanmalıdır.",
           "side": "right"
         }
       ],
