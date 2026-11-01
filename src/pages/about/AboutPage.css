@@ -37,20 +37,6 @@
   text-transform: uppercase;
 }
 
-.aqua-about-kicker {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.aqua-about-kicker-mark {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #16a394;
-  box-shadow: 0 0 0 4px rgb(22 163 148 / 12%);
-}
-
 .aqua-about-hero h1 {
   max-width: 720px;
   margin: 17px 0 14px;

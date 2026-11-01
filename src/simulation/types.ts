@@ -108,6 +108,25 @@ export interface HydropowerEstimateResult {
   isIllustrative: true;
 }
 
+/**
+ * Runtime-generated illustrative micro-hydro candidate along a channel path.
+ * Net head is derived from assumed grade × distance (no DEM).
+ */
+export interface HydroCandidateSite {
+  id: string;
+  lat: number;
+  lng: number;
+  segmentId: string;
+  referenceSensorId: string;
+  netHeadM: number;
+  efficiency: number;
+  flowRateLps: number;
+  lengthFromUpstreamM: number;
+  estimate: HydropowerEstimateResult;
+  rank: number;
+  isIllustrative: true;
+}
+
 export interface NetworkSummaryMetrics {
   totalSensors: number;
   activeSensorsCount: number;
@@ -115,6 +134,7 @@ export interface NetworkSummaryMetrics {
   attentionSensorsCount: number;
   warningSensorsCount: number;
   criticalSensorsCount: number;
+  /** Active warning + critical alerts only (info/system notices excluded) */
   openAlertsCount: number;
   /** Reference inflow measured at the primary upstream station (S01) to avoid summing serial sensors on the same channel */
   referenceInflowLps: number;

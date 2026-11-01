@@ -146,10 +146,7 @@ export function AboutPage({ title }) {
       <div className="aqua-about">
         <section className="aqua-about-hero">
           <div className="aqua-about-hero-copy">
-            <p className="aqua-about-kicker">
-              <span className="aqua-about-kicker-mark" aria-hidden="true" />
-              {copy.hero.kicker}
-            </p>
+            <p className="aqua-about-kicker">{copy.hero.kicker}</p>
             <h1>{copy.hero.title}</h1>
             <p className="aqua-about-intro">{copy.hero.intro}</p>
             <div className="aqua-about-hero-tags">

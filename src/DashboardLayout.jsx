@@ -562,7 +562,13 @@ export default function DashboardLayout() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800">{t('dashboard.alertsTitle')}</h3>
             <span className="text-xs font-medium text-slate-500">
-              {t('dashboard.activeAlertsCount', { count: alerts.filter((a) => a.status === 'active').length })}
+              {t('dashboard.activeAlertsCount', {
+                count: alerts.filter(
+                  (a) =>
+                    a.status === 'active' &&
+                    (a.severity === 'warning' || a.severity === 'critical')
+                ).length,
+              })}
             </span>
           </div>
 
