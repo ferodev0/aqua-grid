@@ -3,7 +3,6 @@ import DashboardLayout from './DashboardLayout';
 import { useLanguage } from './context/LanguageContext';
 import { NetworkMap } from './pages/NetworkMap';
 import { SensorDetailsPage } from './pages/SensorDetailsPage';
-import { NetworkMap } from './pages/NetworkMap.jsx';
 import { SensorsIndexPage } from './pages/SensorsIndexPage';
 import { AboutPage } from './pages/about/AboutPage';
 
