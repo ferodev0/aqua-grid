@@ -38,10 +38,12 @@ import {
   SIMULATION_TICK_INTERVAL_MS,
   type SimulationTickState,
 } from "../simulation/simulationEngine";
+import { generateHydroCandidateSites } from "../simulation/hydroCandidates";
 import type {
   AlertThresholds,
   AquaAlert,
   ChannelSegment,
+  HydroCandidateSite,
   HydropowerEstimateInput,
   HydropowerEstimateResult,
   NetworkSummaryMetrics,
@@ -100,6 +102,8 @@ export interface NetworkContextValue {
   thresholds: AlertThresholds;
   /** Derived network-wide summary metrics for Dashboard and Map headers */
   summaryMetrics: NetworkSummaryMetrics;
+  /** Runtime-ranked illustrative micro-hydro candidate sites along channels */
+  hydroCandidates: HydroCandidateSite[];
   /** Set of sensor IDs manually forced into offline state for demonstration */
   forcedOfflineSensorIds: string[];
 
@@ -196,6 +200,10 @@ function createFallbackContextValue(): NetworkContextValue {
     initial.sensors,
     initial.alerts
   );
+  const hydroCandidates = generateHydroCandidateSites(
+    initial.channelSegments,
+    initial.sensors
+  );
   const sensorsByVillage = groupSensorsByVillage(initial.sensors);
   const sensorsByArea = groupSensorsByArea(initial.sensors);
   const sensorsByVillageAndArea = groupSensorsByVillageAndArea(initial.sensors);
@@ -219,6 +227,7 @@ function createFallbackContextValue(): NetworkContextValue {
     isRunning: false,
     thresholds: DEFAULT_ALERT_THRESHOLDS,
     summaryMetrics,
+    hydroCandidates,
     forcedOfflineSensorIds: [],
     villages,
     areas,
@@ -975,6 +984,15 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
     [sensorsByArea]
   );
 
+  const hydroCandidates = useMemo(
+    () =>
+      generateHydroCandidateSites(
+        simState.channelSegments,
+        simState.sensors
+      ),
+    [simState.channelSegments, simState.sensors]
+  );
+
   const forcedOfflineSensorIds = useMemo(
     () => Array.from(forcedOfflineIds),
     [forcedOfflineIds]
@@ -991,6 +1009,7 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       isRunning,
       thresholds,
       summaryMetrics,
+      hydroCandidates,
       forcedOfflineSensorIds,
       villages,
       areas,
@@ -1032,6 +1051,7 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({
       isRunning,
       thresholds,
       summaryMetrics,
+      hydroCandidates,
       forcedOfflineSensorIds,
       villages,
       areas,

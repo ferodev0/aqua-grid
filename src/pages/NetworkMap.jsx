@@ -47,6 +47,65 @@ function isAlertingStatus(status) {
   return status === 'warning' || status === 'critical';
 }
 
+/** Same glyph as sidebar Sensors nav item (broadcast / radio sensor). */
+function SensorGlyphIcon({ size = 16 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="1.5" fill="#ffffff" />
+      <path
+        d="M8.5 8.5a5 5 0 000 7"
+        stroke="#ffffff"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5.5 5.5a9.5 9.5 0 000 13"
+        stroke="#ffffff"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15.5 8.5a5 5 0 010 7"
+        stroke="#ffffff"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18.5 5.5a9.5 9.5 0 010 13"
+        stroke="#ffffff"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EnergyGlyphIcon({ size = 16 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      aria-hidden="true"
+    >
+      <path
+        fill="#ffffff"
+        d="M13.2 2.4 5.5 13.2h5.1l-.9 8.4 8.4-12h-5.2l1.3-7.2z"
+      />
+    </svg>
+  );
+}
+
 function formatTimeAgo(isoString, t, locale) {
   if (!isoString) return '—';
   const date = new Date(isoString);
@@ -457,17 +516,55 @@ function SchematicNetworkDiagram({
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r="12"
+                r="13"
                 fill={color}
                 stroke="#ffffff"
                 strokeWidth={isAlerting ? 4 : 3}
                 className={isAlerting ? 'aqua-sensor-pulse' : undefined}
               />
+              <g
+                transform={`translate(${pt.x - 7}, ${pt.y - 7}) scale(${14 / 24})`}
+                className={isAlerting ? 'aqua-sensor-pulse' : undefined}
+              >
+                <circle cx="12" cy="12" r="1.5" fill="#ffffff" stroke="none" />
+                <path
+                  d="M8.5 8.5a5 5 0 000 7"
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M5.5 5.5a9.5 9.5 0 000 13"
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M15.5 8.5a5 5 0 010 7"
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M18.5 5.5a9.5 9.5 0 010 13"
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </g>
               <text
                 x={pt.x}
-                y={pt.y + 4}
+                y={pt.y + 24}
                 textAnchor="middle"
-                className="fill-white text-[9px] font-bold"
+                className="fill-slate-200 text-[9px] font-bold"
               >
                 {sensor.id}
               </text>
@@ -502,6 +599,7 @@ export function NetworkMap({ title }) {
     channelSegments,
     alerts,
     summaryMetrics,
+    hydroCandidates,
     isCrisisActive,
     addSensor,
     updateSensor,
@@ -524,6 +622,7 @@ export function NetworkMap({ title }) {
   // Selection state (stores IDs so data is always read live from simulation)
   const [selectedSensorId, setSelectedSensorId] = useState(null);
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [flyTarget, setFlyTarget] = useState(null);
   const [resetViewCounter, setResetViewCounter] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -558,6 +657,20 @@ export function NetworkMap({ title }) {
     () => channelSegments.find((s) => s.id === selectedSegmentId) ?? null,
     [channelSegments, selectedSegmentId]
   );
+
+  const selectedCandidate = useMemo(
+    () => hydroCandidates.find((c) => c.id === selectedCandidateId) ?? null,
+    [hydroCandidates, selectedCandidateId]
+  );
+
+  useEffect(() => {
+    if (
+      selectedCandidateId &&
+      !hydroCandidates.some((c) => c.id === selectedCandidateId)
+    ) {
+      setSelectedCandidateId(null);
+    }
+  }, [hydroCandidates, selectedCandidateId]);
 
   const selectedSensorAlertSummary = useMemo(() => {
     if (!selectedSensor) return { latest: null, total: 0 };
@@ -626,6 +739,7 @@ export function NetworkMap({ title }) {
     (sensorId, shouldFly = false, sensorOverride = null) => {
       setSelectedSensorId(sensorId);
       setSelectedSegmentId(null);
+      setSelectedCandidateId(null);
       setConfirmDeleteId(null);
       const targetSensor =
         sensorOverride || sensors.find((s) => s.id === sensorId);
@@ -642,12 +756,22 @@ export function NetworkMap({ title }) {
   const handleSelectSegment = useCallback((segmentId) => {
     setSelectedSegmentId(segmentId);
     setSelectedSensorId(null);
+    setSelectedCandidateId(null);
     setConfirmDeleteId(null);
+  }, []);
+
+  const handleSelectCandidate = useCallback((candidateId) => {
+    setSelectedCandidateId(candidateId);
+    setSelectedSensorId(null);
+    setSelectedSegmentId(null);
+    setConfirmDeleteId(null);
+    setIsEditPanelOpen(false);
   }, []);
 
   const clearMapSelection = useCallback(() => {
     setSelectedSensorId(null);
     setSelectedSegmentId(null);
+    setSelectedCandidateId(null);
     setConfirmDeleteId(null);
     setIsEditPanelOpen(false);
   }, []);
@@ -1294,7 +1418,44 @@ export function NetworkMap({ title }) {
                 </>
               )}
 
-              {/* Simulated Sensor Station Markers (S01..S04 + Virtual Stations) */}
+              {/* Runtime micro-hydro candidate sites */}
+              {hydroCandidates.map((site) => {
+                const isSelected = site.id === selectedCandidateId;
+                return (
+                  <CircleMarker
+                    key={site.id}
+                    center={[site.lat, site.lng]}
+                    radius={isSelected ? 12 : 10}
+                    pathOptions={{
+                      fillColor: '#0284c7',
+                      fillOpacity: 1,
+                      color: isSelected
+                        ? isDark
+                          ? '#2dd4bf'
+                          : '#0f172a'
+                        : '#ffffff',
+                      weight: isSelected ? 3.5 : 2.5,
+                    }}
+                    eventHandlers={{
+                      click: () => handleSelectCandidate(site.id),
+                    }}
+                  >
+                    {/* Centered glyph — Leaflet anchors this to the same lat/lng */}
+                    <Tooltip
+                      permanent
+                      interactive={false}
+                      direction="center"
+                      offset={[0, 0]}
+                      opacity={1}
+                      className="aqua-marker-glyph-tip"
+                    >
+                      <EnergyGlyphIcon size={isSelected ? 15 : 14} />
+                    </Tooltip>
+                  </CircleMarker>
+                );
+              })}
+
+              {/* Simulated Sensor Station Markers */}
               {sensors.map((sensor) => {
                 const coords = getSensorCoords(sensor, channelSegments);
                 const markerColor =
@@ -1302,6 +1463,7 @@ export function NetworkMap({ title }) {
                   STATUS_MARKER_COLORS.normal;
                 const isSelected = sensor.id === selectedSensorId;
                 const isAlerting = isAlertingStatus(sensor.status);
+                const radius = isSelected ? 14 : isAlerting ? 12 : 11;
 
                 return (
                   <Fragment key={sensor.id}>
@@ -1337,7 +1499,7 @@ export function NetworkMap({ title }) {
                     )}
                     <CircleMarker
                       center={coords}
-                      radius={isSelected ? 14 : isAlerting ? 12 : 10}
+                      radius={radius}
                       pathOptions={{
                         fillColor: markerColor,
                         fillOpacity: 1,
@@ -1346,10 +1508,8 @@ export function NetworkMap({ title }) {
                             ? '#2dd4bf'
                             : '#0f172a'
                           : '#ffffff',
-                        weight: isAlerting || isSelected ? 4 : 2.5,
-                        className: isAlerting
-                          ? 'aqua-sensor-pulse'
-                          : undefined,
+                        weight: isAlerting || isSelected ? 3.5 : 2.5,
+                        className: isAlerting ? 'aqua-sensor-pulse' : undefined,
                       }}
                       eventHandlers={{
                         click: () => handleSelectSensor(sensor.id, false),
@@ -1358,11 +1518,12 @@ export function NetworkMap({ title }) {
                       <Tooltip
                         permanent
                         interactive={false}
-                        direction="top"
-                        offset={[0, -10]}
-                        className="font-mono text-[10px] font-bold"
+                        direction="center"
+                        offset={[0, 0]}
+                        opacity={1}
+                        className="aqua-marker-glyph-tip"
                       >
-                        {sensor.id}
+                        <SensorGlyphIcon size={radius >= 13 ? 16 : 14} />
                       </Tooltip>
                     </CircleMarker>
                   </Fragment>
@@ -1502,7 +1663,7 @@ export function NetworkMap({ title }) {
             </div>
           )}
 
-          {selectedSegment && !selectedSensor && (
+          {selectedSegment && !selectedSensor && !selectedCandidate && (
             <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1552,6 +1713,82 @@ export function NetworkMap({ title }) {
             </div>
           )}
 
+          {selectedCandidate && !selectedSensor && (
+            <div className="pointer-events-auto absolute right-3 top-3 z-[500] max-w-xs rounded-xl border border-slate-200 bg-white/95 p-3.5 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300">
+                    {t('map.hydroCandidateBadge')}
+                  </span>
+                  <h4 className="mt-1.5 text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {t('map.hydroCandidateName', {
+                      rank: selectedCandidate.rank,
+                      segmentId: selectedCandidate.segmentId,
+                    })}
+                  </h4>
+                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                    {t('map.hydroGradeNote')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearMapSelection}
+                  className="shrink-0 rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  aria-label={t('map.closeCard')}
+                  title={t('map.closeCard')}
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mt-2 space-y-1.5 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-900/70">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {t('map.refFlowLabel', {
+                      id: selectedCandidate.referenceSensorId,
+                    })}
+                  </span>
+                  <strong className="font-mono text-slate-800 dark:text-slate-100">
+                    {selectedCandidate.flowRateLps.toFixed(2)} L/s
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {t('map.assumedHeadLabel')}
+                  </span>
+                  <strong className="font-mono text-slate-800 dark:text-slate-100">
+                    {selectedCandidate.netHeadM.toFixed(2)} m (
+                    {Math.round(selectedCandidate.efficiency * 100)}%{' '}
+                    {t('map.effShort')})
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {t('map.theoreticalPotentialLabel')}
+                  </span>
+                  <strong className="font-mono text-teal-700 dark:text-teal-400">
+                    ~{selectedCandidate.estimate.powerWatts.toFixed(0)} W (
+                    {selectedCandidate.estimate.dailyEnergyKwh.toFixed(2)}{' '}
+                    kWh/d)
+                  </strong>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Map Legend Overlay (Bottom-Right of Map) */}
           <div className="pointer-events-auto absolute bottom-3 right-3 z-[500] rounded-xl border border-slate-200 bg-white/95 p-3 text-[11px] shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
             <div className="mb-1.5">
@@ -1575,6 +1812,21 @@ export function NetworkMap({ title }) {
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
                 {t('status.offline')}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-sky-600">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-2.5 w-2.5"
+                    aria-hidden
+                  >
+                    <path
+                      fill="#ffffff"
+                      d="M13.2 2.4 5.5 13.2h5.1l-.9 8.4 8.4-12h-5.2l1.3-7.2z"
+                    />
+                  </svg>
+                </span>
+                {t('map.hydroLegendLabel')}
               </span>
             </div>
           </div>
